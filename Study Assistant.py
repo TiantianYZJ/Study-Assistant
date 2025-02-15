@@ -20,7 +20,7 @@ CHANGELOG = [
     "V0.3.0-2024.02.15 1、HTML渲染页面全面适配深色模式",
     "V0.3.1-2024.02.15 1、【AI智答】支持设置回答显示方式；2、【API配置教程】改为用浏览器打开，更美观",
     "V0.3.2-2024.02.15 1、【API配置教程】更换渲染风格，响应式布局",
-    "V1.0.0-2024.02.15 1、“学习助手”1.0.0正式版发布！欢迎体验交流",
+    "V1.0.0-2024.02.16 1、“学习助手”1.0.0正式版发布！欢迎体验交流",
 ]
 
 import threading
@@ -765,8 +765,8 @@ def show_progress_report():
 def open_about():
     about_window = tk.Toplevel(root)
     about_window.title("关于")
-    about_window.geometry("1000x820")
-    about_window.resizable(False, False)  # 禁止窗口大小调整
+    about_window.geometry("1000x860")
+    about_window.resizable(False, False)
     
     # 使用Frame容器
     content_frame = ttk.Frame(about_window)
@@ -798,7 +798,7 @@ def open_about():
 ✓ 多主题界面适配
 ✓ 响应式窗口布局
 ✓ 系统托盘常驻运行
-✓ 开机自动运行（需设置）
+✓ 可设置开机自启动
 """
     ttk.Label(content_frame, 
              text=features,
@@ -819,6 +819,22 @@ def open_about():
              font=("Microsoft YaHei", 9),
              foreground="#95a5a6",
              justify="center").pack(pady=10)
+    
+    # 许可证信息
+    ttk.Label(content_frame,
+             text="本应用遵循GPL V3开源协议",
+             font=("Microsoft YaHei", 9),
+             foreground="#95a5a6",
+             justify="center").pack(pady=0)
+    
+    # 添加超链接提示
+    link_label = ttk.Label(content_frame,
+                           text="查看GitHub项目页",
+                           font=("Microsoft YaHei", 9, "underline"),
+                           foreground="#3498db",
+                           cursor="hand2")
+    link_label.pack(pady=3)
+    link_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/TiantianYZJ/Study-Assistant"))
     
     # ========== 新增更新日志部分 ==========
     changelog_frame = ttk.LabelFrame(content_frame, text="更新日志", padding=10)
@@ -844,7 +860,7 @@ def open_about():
     scrollbar.config(command=changelog_text.yview)
     
     # 插入日志内容
-    for entry in reversed(CHANGELOG):  # 最新日志显示在最前面
+    for entry in reversed(CHANGELOG):
         changelog_text.insert("end", f"• {entry}\n")
     changelog_text.configure(state="disabled")
 
@@ -1107,12 +1123,6 @@ def open_ai_assistant():
                     stream=False
                 )
                 
-                # markdown = mistune.create_markdown(plugins=['strikethrough', 'footnotes', 'table', 'url', 'task_lists', 'def_list', 'abbr', 'math'])
-                # html_text = markdown(response.choices[0].message.content)
-                
-                # html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;">{html_text}</div>'
-                # html_label.set_html(html_text)
-                # 新增：获取显示模式
                 c.execute("SELECT display_mode FROM ai_settings")
                 display_mode = c.fetchone()[0] or "window"
 
@@ -1134,7 +1144,6 @@ def open_ai_assistant():
                     """
 
                     # 改成更简单的结构，CSS通过模板加载
-                    # current_response_html = html_content
                     webbrowser.open("http://localhost:5000/ai-response")
 
                     # 显示提示
@@ -1161,13 +1170,6 @@ def open_ai_assistant():
             try:
                 response = requests.post(url, headers=headers, json=payload)
                 if response.status_code == 200:
-                    # reply = response.json()['choices'][0]['message']['content']
-
-                    # markdown = mistune.create_markdown(plugins=['strikethrough', 'footnotes', 'table', 'url', 'task_lists', 'def_list', 'abbr', 'math'])
-                    # html_text = markdown(reply)
-
-                    # html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;">{html_text}</div>'
-                    # html_label.set_html(html_text)
                     c.execute("SELECT display_mode FROM ai_settings")
                     display_mode = c.fetchone()[0] or "window"
 
