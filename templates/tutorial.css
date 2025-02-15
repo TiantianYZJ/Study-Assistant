@@ -1,0 +1,110 @@
+.tutorial-container {
+    display: flex;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.sidebar {
+    width: 280px;
+    padding-right: 2rem;
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 优化目录样式 */
+.toc {
+    border-left: 3px solid #6366f1;
+    padding-left: 1.5rem;
+}
+
+.toc ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.toc li {
+    margin: 0.5rem 0;
+}
+
+.toc a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+    display: block;
+    padding: 0.25rem 0;
+}
+
+.toc a:hover {
+    color: #6366f1;
+}
+
+/* 优化正文样式 */
+.content h1 {
+    font-size: 2rem;
+    margin-top: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.content h2 {
+    font-size: 1.5rem;
+    margin-top: 1.5rem;
+    color: #1f2937;
+}
+
+.content blockquote {
+    background: #f3f4f6;
+    border-left: 4px solid #e5e7eb;
+    margin: 1rem 0;
+    padding: 1rem;
+    color: #4b5563;
+}
+
+.content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.content th,
+.content td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.content th {
+    background: #f9fafb;
+    font-weight: 600;
+}
+
+.content a {
+    color: #6366f1;
+    text-decoration: underline;
+}
+
+.dark-mode table {
+    background: #1f2937;
+    color: white;
+}
+
+.dark-mode table th {
+    background: #111827;
+}
+
+.dark-mode blockquote {
+    background: #374151;
+    border-color: #4b5563;
+    color: #d1d5db;
+}
