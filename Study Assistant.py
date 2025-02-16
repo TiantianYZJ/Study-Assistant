@@ -30,6 +30,7 @@ CHANGELOG = [
     "V1.0.0-2024.02.16 1、“学习助手”1.0.0正式版发布！欢迎体验交流",
     "V1.0.1-2024.02.16 1、优化部分窗口尺寸；2、优化通知提示；3、修复了一些已知BUG",
     "V1.0.2-2024.02.16 1、修复了一些已知BUG",
+    "V1.0.3-2024.02.16 1、更换高清图标",
 ]
 
 import threading
@@ -801,7 +802,7 @@ def open_about():
 
     # 版本信息
     ttk.Label(content_frame,
-             text="V1.0.1", 
+             text="V1.0.3", 
              font=("Microsoft YaHei", 10),
              foreground="#7f8c8d").pack(pady=5)
 
