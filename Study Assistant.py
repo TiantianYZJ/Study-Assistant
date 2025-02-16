@@ -15,7 +15,7 @@ CHANGELOG = [
     "V0.2.5-2024.02.12 1、实现对AImarkdown格式回答的渲染",
     "V0.2.6-2024.02.14 1、新增【更新日志】；2、优化API设置界面布局",
     "V0.2.7-2024.02.14 1、增加启动欢迎提示，同时提醒待完成任务项",
-    "V0.2.8-2024.02.15 1、【AI设置】添加【个人API配置教程】；2、【AI智答】支持选择服务提供商",
+    "V0.2.8-2024.02.15 1、【AI设置】添加【私有API配置教程】；2、【AI智答】支持选择服务提供商",
     "V0.2.9-2024.02.15 1、【学习数据统计】任务状态分布情况细分，更加丰富直观；2、启动欢迎提示增加即将截止、已截止任务提醒",
     "V0.3.0-2024.02.15 1、HTML渲染页面全面适配深色模式",
     "V0.3.1-2024.02.15 1、【AI智答】支持设置回答显示方式；2、【API配置教程】改为用浏览器打开，更美观",
@@ -459,8 +459,8 @@ def edit_task():
         values=[str(y) for y in range(2023, 2051)],
         width=7
     )
-    year_combo.grid(row=1, column=1, sticky="w", padx=5)  # 调整列位置
-    ttk.Label(info_frame, text="年").grid(row=1, column=1, sticky="w", padx=75)
+    year_combo.grid(row=1, column=1, sticky="w", padx=5, pady=5)  # 调整列位置
+    ttk.Label(info_frame, text="年").grid(row=1, column=1, sticky="w", padx=75, pady=5)
     
     # 月份选择
     month_combo = ttk.Combobox(
@@ -469,8 +469,8 @@ def edit_task():
         values=[str(m).zfill(2) for m in range(1, 13)],
         width=5
     )
-    month_combo.grid(row=1, column=1, sticky="w", padx=100)
-    ttk.Label(info_frame, text="月").grid(row=1, column=1, sticky="w", padx=160)
+    month_combo.grid(row=1, column=1, sticky="w", padx=100, pady=5)
+    ttk.Label(info_frame, text="月").grid(row=1, column=1, sticky="w", padx=160, pady=5)
     
     # 日期选择
     day_combo = ttk.Combobox(
@@ -479,7 +479,7 @@ def edit_task():
         values=[str(d).zfill(2) for d in range(1, 32)],
         width=5
     )
-    day_combo.grid(row=1, column=1, sticky="w", padx=185)
+    day_combo.grid(row=1, column=1, sticky="w", padx=185, pady=5)
     ttk.Label(info_frame, text="日").grid(row=1, column=1, sticky="w", padx=245, pady=5)
 
     # ========== 任务状态部分 ==========
@@ -899,25 +899,6 @@ def open_settings():
     autostart_frame = ttk.LabelFrame(setting_window, text="开机自启动", padding=10)
     autostart_frame.pack(fill="x", padx=10, pady=10)
 
-
-    def open_file_location():
-        """打开程序所在目录（兼容打包环境）"""
-        messagebox.showinfo("操作指南",
-            "1. 选中“Study Assistant.exe”并右键呼出菜单\n"
-            "2. 选择【复制】\n"
-            "3. 重启电脑生效\n"
-            "单击【确定】以打开该程序目录",
-            parent=setting_window)
-        if getattr(sys, 'frozen', False):
-            # 打包后的可执行文件路径
-            exe_dir = os.path.dirname(sys.executable)
-            os.startfile(exe_dir)
-        else:
-            # 开发环境下的脚本路径
-            script_path = os.path.abspath(sys.argv[0])
-            script_dir = os.path.dirname(script_path)
-            os.startfile(script_dir)
-
     def get_startup_folder():
         """获取系统自启动文件夹路径"""
         startup_path = os.path.join(
@@ -956,7 +937,7 @@ def open_settings():
         
         try:
             if os.path.exists(shortcut_path):
-                if not messagebox.askyesno("确认", "已存在快捷方式，是否覆盖？", parent=setting_window):
+                if not messagebox.askyesno("确认", "已存在旧版本的快捷方式，是否覆盖？", parent=setting_window):
                     return
                 
             winshell.CreateShortcut(
@@ -1214,7 +1195,7 @@ def open_ai_assistant():
 def open_ai_settings(parent):
     settings_window = tk.Toplevel(parent)
     settings_window.title("AI智答设置")
-    settings_window.geometry("500x550")
+    settings_window.geometry("900x550")
     
     # 主容器使用pack布局
     main_frame = ttk.Frame(settings_window, padding=20)
@@ -1251,7 +1232,7 @@ def open_ai_settings(parent):
     api_entry.pack(fill="x", pady=5, padx=5)
     
     ttk.Label(api_frame, 
-             text="留空将使用作者自费默认API\n推荐配置个人API Key，谢谢理解！",
+             text="留空将使用作者自费默认API\n推荐配置私有API Key，谢谢理解！",
              font=("Microsoft YaHei", 9),
              foreground="#666666").pack(anchor="w")
     
@@ -1261,7 +1242,7 @@ def open_ai_settings(parent):
     
     ttk.Button(
         api_frame,
-        text="📘 个人API配置教程",
+        text="📘 私有API配置教程",
         command=show_api_tutorial,
         width=20
     ).pack(pady=10)
@@ -1293,6 +1274,11 @@ def open_ai_settings(parent):
         validate="key",
         validatecommand=lambda: False
     )
+
+    ttk.Label(display_frame, 
+             text="在原窗口显示：方便快捷。但仅支持IE4内核，因此无法渲染部分Markdown语法\n在浏览器显示：将调用系统，浏览器。但可渲染所有Markdown语法，更加现代化，可一键复制（推荐）",
+             font=("Microsoft YaHei", 9),
+             foreground="#666666").pack(anchor="w")
     
     save_btn = ttk.Button(
         main_frame,
