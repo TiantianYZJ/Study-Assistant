@@ -822,7 +822,7 @@ def open_about():
     
     # 许可证信息
     ttk.Label(content_frame,
-             text="本应用遵循GPL V3开源协议",
+             text="本应用遵循 GNU General Public License v3.0 开源协议",
              font=("Microsoft YaHei", 9),
              foreground="#95a5a6",
              justify="center").pack(pady=0)
