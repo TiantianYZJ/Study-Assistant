@@ -28,6 +28,7 @@ CHANGELOG = [
     "V0.3.2-2024.02.15 1、【API配置教程】更换渲染风格，响应式布局",
     "V0.3.3-2024.02.16 1、托盘右键菜单优化，新增【统计报告】选项",
     "V1.0.0-2024.02.16 1、“学习助手”1.0.0正式版发布！欢迎体验交流",
+    "V1.0.1-2024.02.16 1、优化部分窗口尺寸；2、优化通知提示；3、修复了一些已知BUG",
 ]
 
 import threading
@@ -222,17 +223,20 @@ for task in all_tasks:
             upcoming += 1
         else:
             expired += 1
-if (get_num(3) > 0):
-    if (upcoming > 0 and expired > 0):
-        sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成，其中{expired}个已截止，{upcoming}个即将到期！")
-    elif (expired > 0):
-        sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成，其中{expired}个已截止!")
-    elif (upcoming > 0):
-        sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成，其中{upcoming}个即将到期！")
-    else:
-        sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成")
-elif (get_num(3) == 0):
-    sent_notice(f"{judge_time()}好！", f"你没有待完成的任务，快去添加吧！")
+if (get_num(1) == 0):
+    sent_notice(f"{judge_time()}好！", f"你没有任务哦，快去添加吧！")
+else:
+    if (get_num(3) > 0):
+        if (upcoming > 0 and expired > 0):
+            sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成，其中{expired}个已截止，{upcoming}个即将到期！")
+        elif (expired > 0):
+            sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成，其中{expired}个已截止!")
+        elif (upcoming > 0):
+            sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成，其中{upcoming}个即将到期！")
+        else:
+            sent_notice(f"{judge_time()}好！", f"你有{get_num(3)}个任务待完成")
+    elif (get_num(3) == 0):
+        sent_notice(f"{judge_time()}好！", f"你没有待完成的任务")
 
 # 主窗口
 root = tk.Tk()
@@ -376,7 +380,14 @@ def create_tray_icon():
             pystray.MenuItem('关于应用', open_about_window),
             pystray.MenuItem('退出', on_closing))
 
-    icon = pystray.Icon("LOGO", image, f"学习助手（{get_num(3)}个任务待完成）", menu)
+    if (get_num(1) == 0):
+        icon = pystray.Icon("LOGO", image, f"学习助手（没有添加任务）", menu)
+    else:
+        if (get_num(3) > 0):
+            icon = pystray.Icon("LOGO", image, f"学习助手（{get_num(3)}个任务待完成）", menu)
+        elif (get_num(3)  == 0):
+            icon = pystray.Icon("LOGO", image, f"学习助手（所有任务已完成）", menu)
+        
     return icon
 
 # 更新任务列表
@@ -789,7 +800,7 @@ def open_about():
 
     # 版本信息
     ttk.Label(content_frame,
-             text="V1.0.0",
+             text="V1.0.1", 
              font=("Microsoft YaHei", 10),
              foreground="#7f8c8d").pack(pady=5)
 
@@ -998,7 +1009,7 @@ def open_settings():
 def open_ai_assistant():
     ai_window = tk.Toplevel(root)
     ai_window.title("AI智答")
-    ai_window.geometry("1000x800")
+    ai_window.geometry("1000x700")
     
     # 获取当前主题颜色
     text_bg = judge_theme(1)
@@ -1076,9 +1087,9 @@ def open_ai_assistant():
     ).pack(side="left", padx=5)
 
     ttk.Label(control_frame, 
-             text="""本服务由Deepseek提供支持 · 不支持连续对话
+             text="""本服务由Deepseek提供支持 · 不支持连续对话 · 本应用不对回答结果负责
 默认使用共享API · 由作者自费 · 可在【设置】更改
-有大量使用需求的用户请配置自己的API，谢谢理解！""",
+有大量使用需求的用户请配置私有API，谢谢理解！""",
              font=("Microsoft YaHei", 9),
              foreground="#666666").pack(side="left", padx=5)
     
@@ -1132,7 +1143,6 @@ def open_ai_assistant():
                     </div>
                     """
 
-                    # 改成更简单的结构，CSS通过模板加载
                     webbrowser.open("http://localhost:5000/ai-response")
 
                     # 显示提示
@@ -1240,7 +1250,7 @@ def open_ai_settings(parent):
     api_entry.pack(fill="x", pady=5, padx=5)
     
     ttk.Label(api_frame, 
-             text="留空将使用作者自费默认API\n推荐配置私有API Key，谢谢理解！",
+             text="留空将使用作者自费默认API\n推荐配置私有API，谢谢理解！",
              font=("Microsoft YaHei", 9),
              foreground="#666666").pack(anchor="w")
     
@@ -1284,7 +1294,7 @@ def open_ai_settings(parent):
     )
 
     ttk.Label(display_frame, 
-             text="在原窗口显示：方便快捷。但仅支持IE4内核，因此无法渲染部分Markdown语法\n在浏览器显示：将调用系统，浏览器。但可渲染所有Markdown语法，更加现代化，可一键复制（推荐）",
+             text="在原窗口显示：方便快捷。但仅支持IE4内核，因此无法渲染部分Markdown语法（表格、代码块等）\n在浏览器显示：将调用系统浏览器。但可渲染所有Markdown语法，更加现代化，可一键复制（推荐）",
              font=("Microsoft YaHei", 9),
              foreground="#666666").pack(anchor="w")
     
@@ -1399,17 +1409,20 @@ ttk.Button(func_btn_frame, text="ℹ️ 关于应用", command=open_about, width
 # 创建托盘
 def on_closing(icon, item):
     icon.stop()
-    if (get_num(3) > 0):
-        sent_notice("学习助手已退出", f"记得完成剩下的{get_num(3)}个任务")
-    elif (get_num(3) == 0):
-        sent_notice("学习助手已退出", f"厉害！你完成了所有共计{get_num(1)}个任务！")
+    if (get_num(1) == 0):
+        sent_notice("学习助手已退出", f"你没有任何任务哦")
+    else:
+        if (get_num(3) > 0):
+            sent_notice("学习助手已退出", f"记得完成剩下的{get_num(3)}个任务")
+        elif (get_num(3) == 0):
+            sent_notice("学习助手已退出", f"厉害！你完成了所有共计{get_num(1)}个任务！")
     root.destroy()
     return 0
 
 def on_show():
     root.withdraw()
     icon = create_tray_icon()
-    sent_notice("已最小化到任务栏托盘", "右击托盘图标并选择【显示】可恢复")
+    sent_notice("已最小化到任务栏托盘", "右键托盘图标并选择【显示】可恢复")
     icon.run()
     return 0
 
