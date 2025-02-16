@@ -1,5 +1,5 @@
 # Study Assistant - 智能化学习任务管理工具
-# Copyright (C) 2024  TiantianYZJ
+# Copyright (C) 2025  TiantianYZJ
 # 
 # 本程序遵循GPLv3协议：您可以在遵守许可证条款的前提下自由使用、修改和分发。
 # 完整授权条款请参见项目根目录下的LICENSE文件。
