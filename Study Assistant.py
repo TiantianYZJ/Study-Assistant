@@ -1,3 +1,9 @@
+# Study Assistant - 智能化学习任务管理工具
+# Copyright (C) 2024  TiantianYZJ
+# 
+# 本程序遵循GPLv3协议：您可以在遵守许可证条款的前提下自由使用、修改和分发。
+# 完整授权条款请参见项目根目录下的LICENSE文件。
+
 # 更新日志
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学习助手”正式诞生，具备代办管理功能",
@@ -20,6 +26,7 @@ CHANGELOG = [
     "V0.3.0-2024.02.15 1、HTML渲染页面全面适配深色模式",
     "V0.3.1-2024.02.15 1、【AI智答】支持设置回答显示方式；2、【API配置教程】改为用浏览器打开，更美观",
     "V0.3.2-2024.02.15 1、【API配置教程】更换渲染风格，响应式布局",
+    "V0.3.3-2024.02.16 1、托盘右键菜单优化，新增【统计报告】选项",
     "V1.0.0-2024.02.16 1、“学习助手”1.0.0正式版发布！欢迎体验交流",
 ]
 
@@ -362,10 +369,11 @@ def update_time():
 def create_tray_icon():
     image = Image.open(resource_path('LOGO.png'))
 
-    menu = (pystray.MenuItem('显示', on_showing), 
+    menu = (pystray.MenuItem('主页', on_showing), 
             pystray.MenuItem('AI智答', open_ai_assistant_window),
+            pystray.MenuItem('统计报告', open_progress_window),
             pystray.MenuItem('设置', open_settings_window),
-            pystray.MenuItem('关于', open_about_window),
+            pystray.MenuItem('关于应用', open_about_window),
             pystray.MenuItem('退出', on_closing))
 
     icon = pystray.Icon("LOGO", image, f"学习助手（{get_num(3)}个任务待完成）", menu)
@@ -1430,6 +1438,13 @@ def open_about_window(icon, item):
     icon.stop()
     root.deiconify()
     open_about()
+    sent_notice("任务栏托盘已隐藏", "关闭所有窗口将再次出现")
+    return 0
+
+def open_progress_window(icon, item):
+    icon.stop()
+    root.deiconify()
+    show_progress_report()
     sent_notice("任务栏托盘已隐藏", "关闭所有窗口将再次出现")
     return 0
 
