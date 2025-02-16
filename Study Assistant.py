@@ -29,6 +29,7 @@ CHANGELOG = [
     "V0.3.3-2024.02.16 1、托盘右键菜单优化，新增【统计报告】选项",
     "V1.0.0-2024.02.16 1、“学习助手”1.0.0正式版发布！欢迎体验交流",
     "V1.0.1-2024.02.16 1、优化部分窗口尺寸；2、优化通知提示；3、修复了一些已知BUG",
+    "V1.0.2-2024.02.16 1、修复了一些已知BUG",
 ]
 
 import threading
@@ -142,7 +143,7 @@ conn = sqlite3.connect(str(db_path))
 c = conn.cursor()
 
 # 创建任务表
-# c.execute('DROP TABLE ai_settings')
+# c.execute('DROP TABLE theme_settings')
 c.execute('''CREATE TABLE IF NOT EXISTS tasks (
              id INTEGER PRIMARY KEY AUTOINCREMENT,
              name TEXT NOT NULL,
@@ -277,7 +278,7 @@ theme_settings = c.fetchone()
 
 # 如果没有主题设置，插入默认值
 if not theme_settings:
-    c.execute("INSERT INTO theme_settings (theme_choice) VALUES ('跟随系统')")
+    c.execute("INSERT INTO theme_settings (theme_choice) VALUES ('自动切换')")
     conn.commit()
 
 # 获取当前主题设置
@@ -293,7 +294,7 @@ def set_theme(theme_choice):
     elif theme_choice == "深色模式":
         root.tk.call("set_theme", "dark")
         theme = "dark"
-    elif theme_choice == "跟随系统":
+    elif theme_choice == "自动切换":
         clock = int(strftime("%H"))
         if ((clock >= 0 and clock <= 4) or (clock >= 21 and clock <= 24)):
             root.tk.call("set_theme", "dark")
@@ -908,7 +909,7 @@ def open_settings():
     theme_combobox = ttk.Combobox(
         theme_frame,
         textvariable=theme_var,
-        values=["浅色模式", "深色模式", "跟随系统"],
+        values=["浅色模式", "深色模式", "自动切换"],
         state="readonly",
         width=15
     )
