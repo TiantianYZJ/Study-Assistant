@@ -3,7 +3,7 @@
 block_cipher = None
 
 a = Analysis(
-    ['Study Assistant.py'], 
+    ['TaskWing.py'], 
     pathex=[],  
     binaries=[], 
     datas=[
@@ -35,7 +35,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='学习助手', 
+    name='学翼', 
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -55,5 +55,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='学习助手V1.0.3' 
+    name='学翼V1.0.4' 
 )

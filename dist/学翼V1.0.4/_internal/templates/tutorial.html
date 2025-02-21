@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API配置教程 - 学习助手</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: {{ bg_color }};
+            --text-color: {{ text_color }};
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --code-bg: rgba(118, 75, 162, 0.15);
+        }
+
+        /* 保持与ai_response相同的全局样式 */
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter var', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+            display: flex;
+            gap: 2rem;
+        }
+
+        /* 侧边栏样式增强 */
+        .sidebar {
+            width: 280px;
+            position: sticky;
+            top: 1rem;
+            height: fit-content;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: var(--shadow-md);
+        }
+
+        .toc ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc li {
+            margin: 0.75rem 0;
+            position: relative;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            transition: var(--transition-fast);
+            display: block;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+
+        .toc a:hover {
+            background: rgba(118, 75, 162, 0.1);
+            transform: translateX(8px);
+        }
+
+        /* 内容区域与ai_response保持一致 */
+        .content {
+            flex: 1;
+            background: var(--bg-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary-gradient);
+        }
+
+        /* 保持与ai_response相同的Markdown样式 */
+        .markdown-body {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* 表格样式增强 */
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .markdown-body h2 {
+            position: relative;
+            padding-left: 1.5rem;
+            margin: 2rem 0 1.5rem;
+        }
+
+        .markdown-body h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.4em;
+            height: 1em;
+            width: 6px;
+            background: var(--primary-gradient);
+            border-radius: 3px;
+        }
+
+        .markdown-body ul {
+            list-style: none;
+            padding-left: 1.5rem;
+        }
+
+        .markdown-body ul li::before {
+            content: '•';
+            color: #667eea;
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+        .markdown-body pre {
+            background: var(--code-bg) !important;
+            border-radius: 12px !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 1.25rem 1.5rem !important;
+            overflow-x: auto;
+            transition: var(--transition-fast);
+            position: relative;
+            margin: 0 !important;
+            border-radius: 0 0 12px 12px !important;
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .markdown-body th {
+            background: rgba(118, 75, 162, 0.3);
+            font-weight: 600;
+        }
+
+        /* 引用块特效 */
+        .markdown-body blockquote {
+            border-left: 4px solid #667eea;
+            margin: 1.5rem 0;
+            padding: 1rem 1.5rem;
+            background: var(--glass-bg);
+            border-radius: 8px;
+            position: relative;
+            font-style: italic;
+        }
+
+        .markdown-body blockquote::before {
+            content: '"';
+            position: absolute;
+            left: 0.5rem;
+            top: -0.5rem;
+            font-size: 2.5em;
+            color: rgba(118, 75, 162, 0.3);
+        }
+
+        /* 图片增强 */
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: 16px;
+            margin: 1.5rem 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        /* 交互效果增强 */
+        .markdown-body pre:hover {
+            transform: translateX(4px);
+        }
+
+        .markdown-body img:hover {
+            transform: scale(1.02);
+        }
+
+        /* 高亮文字 */
+        .markdown-body strong {
+            background: linear-gradient(120deg, #667eea30 0%, #764ba230 100%);
+            padding: 0.1em 0.3em;
+            border-radius: 4px;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column; 
+            }
+
+           .sidebar {
+                width: 100%;
+                position: static;
+                margin-bottom: 2rem;
+            }
+
+           .content {
+                padding: 1.5rem;
+            }  
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏目录 -->
+        <nav class="sidebar">
+            <div class="toc">
+                <ul>
+                    <li><a href="#价格说明">价格说明</a></li>
+                    <li><a href="#方式一：Deepseek官方API">一、Deepseek官方API</a>
+                        <ul>
+                            <li><a href="#步骤1 注册Depseek账号">· 注册Depseek账号</a></li>
+                            <li><a href="#步骤2 创建API Key">· 创建API Key</a></li>
+                            <li><a href="#步骤3 输入复制的API Key">· 输入复制的API Key</a></li>
+                            <li><a href="#完成1">完成</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#方式二：硅基流动第三方API">二、硅基流动第三方API</a>
+                        <ul>
+                            <li><a href="#步骤1 注册硅基流动账号">· 注册硅基流动账号</a></li>
+                            <li><a href="#步骤2 创建API Key">· 创建API Key</a></li>
+                            <li><a href="#步骤3 输入复制的API Key">· 输入复制的API Key</a></li>
+                            <li><a href="#完成2">完成</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- 正文内容 -->
+        <article class="content markdown-body">
+            <h1>私有API配置教程</h1>
+            <blockquote>
+                <p>作者：TiantianYZJ<br />
+                最后更新时间：2025.2.15</p>
+            </blockquote>
+            <hr />
+            <blockquote>
+                <p>注： 因近期Deepseek官方API关闭充值入口，因此建议使用 方式二（硅基流动API）</p>
+            </blockquote>
+            <hr />
+            <h2 id="价格说明">价格说明</h2>
+            <p>输入价格（单位：每百万tokens）</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>服务商</th>
+                        <th>Deepseek-V3（深度思考关闭）</th>
+                        <th>Deepseek-R1（深度思考开启）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Deepseek</td>
+                        <td>0.5元（缓存命中）/2元（缓存未命中）</td>
+                        <td>1元（缓存命中）/4元（缓存未命中）</td>
+                    </tr>
+                    <tr>
+                        <td>硅基流动</td>
+                        <td>0.5元（缓存命中）/2元（缓存未命中）</td>
+                        <td>1元（缓存命中）/4元（缓存未命中）</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>输出价格（单位：每百万tokens）</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>服务商</th>
+                        <th>Deepseek-V3（深度思考关闭）</th>
+                        <th>Deepseek-R1（深度思考开启）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Deepseek</td>
+                        <td>8元</td>
+                        <td>16元</td>
+                    </tr>
+                    <tr>
+                        <td>硅基流动</td>
+                        <td>8元</td>
+                        <td>6元</td>
+                    </tr>
+                </tbody>
+            </table>
+            <blockquote>
+                <p>一汉字约为0.6 token，一字母约为0.3 token</p>
+            </blockquote>
+            <hr />
+            <h2 id="方式一：Deepseek官方API">方式一：Deepseek官方API（注册送10元余额）</h2>
+            <h3 id="步骤1 注册Depseek账号">步骤1 注册Depseek账号</h3>
+            <p>点击<a href="https://platform.deepseek.com/usage">这里</a>访问Deepseek，并 <strong>自行注册账号</strong> 。</p>
+            <h3 id ="步骤2 创建API Key">步骤2 创建API Key</h3>
+            <p>注册账号后将默认跳转至<a href="https://platform.deepseek.com/usage">DeepSeek 开放平台</a>；<br />
+            在该网页 <strong>左侧菜单</strong> 找到 <code>API Keys</code> 并点击；<br />
+            选择 <code>创建 API Key</code> 并为其命名；<br />
+            单击 <code>创建</code> ，<strong>复制并保存</strong> 随后显现的一串 <strong>密钥</strong> （因为该密钥仅可查看一次）。</p>
+            <p><img src="https://cdn.luogu.com.cn/upload/image_hosting/2tdkko5d.png" alt="DeepseekAPI配置图示" /></p>
+            <h3 id="步骤3 输入复制的API Key">步骤3 输入复制的API Key</h3>
+            <p>回到 <strong>学习助手</strong> 的AI智答设置页， <code>API服务提供商</code> 选择 <strong>Deepseek</strong> ；<br />
+            在输入框中粘贴 <strong>复制的API Key</strong> ，随后点击 <code>保存设置</code> 。</p>
+            <h3 id="完成1">私有API配置完成，开始使用吧！</h3>
+            <hr />
+            <h2 id="方式二：硅基流动第三方API">方式二：硅基流动第三方API（手机号注册送2000万tokens）</h2>
+            <h id="步骤1 注册硅基流动账号">步骤1 注册硅基流动账号</h3>
+            <p>点击<a href="[SiliconCloud](https://cloud.siliconflow.cn/account/ak)">这里</a>访问硅基流动，并 <strong>自行注册账号</strong> 。</p>
+            <h3 id="步骤2 创建API Key">步骤2 创建API Key</h3>
+            <p>注册账号后将默认跳转至<a href="[SiliconCloud](https://cloud.siliconflow.cn/account/ak)">硅基流动工作台</a>；<br />
+            在该网页 <strong>左侧菜单</strong> 找到 <code>API 密钥</code> 并点击；<br />
+            选择 <code>新建 API 密钥</code> 并填入描述信息；<br />
+            单击 <code>新建密钥</code> ，随后页面自动刷新；<br />
+            将光标移到列表中的密钥上，<strong>复制</strong> 当前 <strong>密钥</strong> （该密钥可查看多次）。</p>
+            <p><img src="https://cdn.luogu.com.cn/upload/image_hosting/haet1tnt.png" alt="硅基流动API配置图示" /></p>
+            <h3 id="步骤3 输入复制的API Key">步骤3 输入复制的API Key</h3>
+            <p>回到 <strong>学习助手</strong> 的AI智答设置页， <code>API服务提供商</code> 选择 <code>硅基流动</code> ；<br />
+            在输入框中粘贴 <strong>复制的API Key</strong> ，随后点击 <code>保存设置</code> 。</p>
+            <h3 id="完成2">私有API配置完成，开始使用吧！</h3>
+            
+        </article>
+    </div>
+
+    <!-- 复制功能脚本 -->
+    <script>
+        function copyContent() {
+            const content = document.querySelector('.markdown-body').innerText;
+            navigator.clipboard.writeText(content);
+        }
+    </script>
+</body>
+</html>

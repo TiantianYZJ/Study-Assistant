@@ -1,4 +1,4 @@
-('E:\\TiantianYZJ\\Documents\\Study Assistant\\build\\pack\\PYZ-00.pyz',
+('E:\\TiantianYZJ\\Documents\\TaskWing\\build\\pack\\PYZ-00.pyz',
  [('PIL',
    'C:\\Users\\HUAWEI\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\PIL\\__init__.py',
    'PYMODULE'),
