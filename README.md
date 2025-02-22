@@ -1,3 +1,5 @@
+![横幅](https://cdn.luogu.com.cn/upload/image_hosting/cs0gr76j.png)
+
 # 学翼 - 您的一站式智能化学习平台
 
 ![学翼-主页面](https://cdn.luogu.com.cn/upload/image_hosting/5m7958hg.png)
