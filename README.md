@@ -6,7 +6,7 @@
 
 **下载最新版本**：[TaskWing V1.0.5 安装包](https://github.com/TiantianYZJ/TaskWing/releases/download/V1.0.5/TaskWing-V1.0.5_Setup.exe)  
 
-*支持 Windows 10/11 系统 | 大小：不超过150MB | 更新时间：2024.02.22*
+*支持 Windows 10/11 系统 | 大小：约121.2MB | 更新时间：2024.02.22*
 
 ---
 

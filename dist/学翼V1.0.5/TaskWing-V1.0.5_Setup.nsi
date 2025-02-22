@@ -435,6 +435,15 @@ Section "MainSection" SEC01
   File "_internal\setuptools\_vendor\wheel-0.43.0.dist-info\RECORD"
   File "_internal\setuptools\_vendor\wheel-0.43.0.dist-info\REQUESTED"
   File "_internal\setuptools\_vendor\wheel-0.43.0.dist-info\WHEEL"
+  SetOutPath "$INSTDIR\_internal\sound"
+  File "_internal\sound\after_rain.mp3"
+  File "_internal\sound\campfire.mp3"
+  File "_internal\sound\camping.mp3"
+  File "_internal\sound\foggy_forest.mp3"
+  File "_internal\sound\frogs.mp3"
+  File "_internal\sound\heavy_rain.mp3"
+  File "_internal\sound\relaxing_walk.mp3"
+  File "_internal\sound\stream.mp3"
   SetOutPath "$INSTDIR\_internal"
   File "_internal\sqlite3.dll"
   SetOutPath "$INSTDIR\_internal\tcl8\8.4\platform"
@@ -1620,11 +1629,11 @@ SectionEnd
 
 Function un.onUninstSuccess
   HideWindow
-  MessageBox MB_ICONINFORMATION|MB_OK "$(^Name) 已成功从您的计算机移除。学翼 期待与您的下次再见！"
+  MessageBox MB_ICONINFORMATION|MB_OK "$(^Name) 已成功卸载。学翼 期待与您的下次再见！"
 FunctionEnd
 
 Function un.onInit
-  MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 "您确定要删除 $(^Name) 吗？" IDYES +2
+  MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 "您确定要卸载 $(^Name) 吗？" IDYES +2
   Abort
 FunctionEnd
 
@@ -2720,6 +2729,14 @@ Section Uninstall
   Delete "$INSTDIR\_internal\tcl8\8.4\platform-1.0.19.tm"
   Delete "$INSTDIR\_internal\tcl8\8.4\platform\shell-1.1.4.tm"
   Delete "$INSTDIR\_internal\sqlite3.dll"
+  Delete "$INSTDIR\_internal\sound\stream.mp3"
+  Delete "$INSTDIR\_internal\sound\relaxing_walk.mp3"
+  Delete "$INSTDIR\_internal\sound\heavy_rain.mp3"
+  Delete "$INSTDIR\_internal\sound\frogs.mp3"
+  Delete "$INSTDIR\_internal\sound\foggy_forest.mp3"
+  Delete "$INSTDIR\_internal\sound\camping.mp3"
+  Delete "$INSTDIR\_internal\sound\campfire.mp3"
+  Delete "$INSTDIR\_internal\sound\after_rain.mp3"
   Delete "$INSTDIR\_internal\setuptools\_vendor\wheel-0.43.0.dist-info\WHEEL"
   Delete "$INSTDIR\_internal\setuptools\_vendor\wheel-0.43.0.dist-info\REQUESTED"
   Delete "$INSTDIR\_internal\setuptools\_vendor\wheel-0.43.0.dist-info\RECORD"
@@ -3074,6 +3091,7 @@ Section Uninstall
   RMDir "$INSTDIR\_internal\tcl8\8.5"
   RMDir "$INSTDIR\_internal\tcl8\8.4\platform"
   RMDir "$INSTDIR\_internal\tcl8\8.4"
+  RMDir "$INSTDIR\_internal\sound"
   RMDir "$INSTDIR\_internal\setuptools\_vendor\wheel-0.43.0.dist-info"
   RMDir "$INSTDIR\_internal\setuptools\_vendor\jaraco\text"
   RMDir "$INSTDIR\_internal\setuptools\_vendor\importlib_metadata-8.0.0.dist-info"

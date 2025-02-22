@@ -16,6 +16,7 @@ a = Analysis(
         ('theme/dark/*', 'theme/dark'), 
         ('templates/ai_response.html', 'templates'), 
         ('templates/tutorial.html', 'templates'), 
+        ('sound/*', 'sound'), 
     ],
     hiddenimports=[], 
     hookspath=[], 
