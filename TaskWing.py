@@ -5,6 +5,7 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
+Version = "V1.0.5"
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -31,11 +32,14 @@ CHANGELOG = [
     "V1.0.1-2024.02.16 1、优化部分窗口尺寸；2、优化通知提示；3、修复了一些已知BUG",
     "V1.0.2-2024.02.16 1、修复了一些已知BUG",
     "V1.0.3-2024.02.16 1、更换高清图标",
-    "V1.0.4-2024.02.20 1、主优化【清空】代码逻辑；2、正式确定应用名：中文“学翼”，英文“TaskWing”",# 番茄钟614行左右，英文名暂定TaskWing‌
+    "V1.0.4-2024.02.20 1、优化【清空】代码逻辑；2、正式确定应用名：中文“学翼”，英文“TaskWing”",
+    "V1.0.5-2024.02.22 1、新增【专注】，计入统计报告，助力高效学习；2、重要按钮增加悬停提示；3、【设置】新增【删除所有数据】，并优化操作逻辑",
 ]
 
+import random
 import threading
 import tkinter as tk
+from tkinter import simpledialog
 import tkinter.font as tkFont
 from tkinter import ttk, messagebox
 import sqlite3
@@ -58,12 +62,14 @@ from tkhtmlview import HTMLLabel
 import mistune
 import requests
 from flask import Flask, render_template
+import pygame  
+from datetime import timedelta
 
 # Flask配置
 flask_app = Flask(__name__, template_folder='templates', static_folder='static')
 flask_app.config['TEMPLATES_AUTO_RELOAD'] = True
-current_response_html = ""  # 用于存储当前要显示的HTML内容
-users_question = ""  # 用于存储用户的问题
+current_response_html = ""
+users_question = ""
 
 # 添加Flask路由
 @flask_app.route('/ai-response')
@@ -81,7 +87,6 @@ def show_tutorial():
         bg_color=judge_theme(1),
         text_color=judge_theme(2)
     )
-
 
 def run_flask_server():
     flask_app.run(port=5000, use_reloader=False)
@@ -140,12 +145,11 @@ user_data_dir = Path(os.getenv('APPDATA')) / "TaskWing"
 user_data_dir.mkdir(exist_ok=True)
 
 # 修改数据库连接路径
-db_path = user_data_dir / "TaskWing_tasks.db"
+db_path = user_data_dir / "TaskWing_data.db"
 conn = sqlite3.connect(str(db_path))
 c = conn.cursor()
 
 # 创建任务表
-# c.execute('DROP TABLE theme_settings')
 c.execute('''CREATE TABLE IF NOT EXISTS tasks (
              id INTEGER PRIMARY KEY AUTOINCREMENT,
              name TEXT NOT NULL,
@@ -190,11 +194,19 @@ if c.fetchone()[0] == 0:
     conn.commit()
 ai_settings = c.fetchall()
 
+# 在数据库创建部分新增番茄钟记录表
+c.execute('''CREATE TABLE IF NOT EXISTS pomodoro_records (
+             total_sessions INTEGER DEFAULT 0,
+             total_minutes INTEGER DEFAULT 0)''')
+conn.commit()
+# c.execute("SELECT * FROM pomorodo_records")
+# pomodoro_records = c.fetchall()
+
 # 检查读取的数据
 print(tasks, task_counter, theme_settings, ai_settings)
 
+# 获取任务总量、已完成数量和待完成数量
 def get_num(mode):
-    # 获取任务总量、已完成数量和待完成数量
     conn.commit()
     c.execute("SELECT COUNT(*) FROM tasks")
     total_tasks = c.fetchone()[0]
@@ -243,7 +255,7 @@ else:
 
 # 主窗口
 root = tk.Tk()
-root.title("学翼  - 您的一站式学习平台")
+root.title("学翼 - 您的一站式智能化学习平台")
 width = 1000
 height = 600
 root.geometry(f"{width}x{height}")
@@ -333,6 +345,86 @@ def judge_theme(mode):
         elif mode == 2:
             return "white"
 
+# Tooltip类
+class Tooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tipwindow = None
+        self.alpha = 0.0  # 透明度控制
+        self.after_id = None  # 延迟显示定时器
+        self.fade_in_id = None  # 渐显动画ID
+        self.widget.bind("<Enter>", self.schedule_show)
+        self.widget.bind("<Leave>", self.schedule_hide)
+
+    def schedule_show(self, event=None):
+        """安排延迟显示"""
+        self.cancel_pending()
+        self.after_id = self.widget.after(500, self.showtip)  # 0.5秒后显示
+
+    def schedule_hide(self, event=None):
+        """安排渐隐效果"""
+        self.cancel_pending()
+        if self.tipwindow:
+            self.fade_out()
+
+    def cancel_pending(self):
+        """取消所有待执行操作"""
+        if self.after_id:
+            self.widget.after_cancel(self.after_id)
+            self.after_id = None
+
+    def showtip(self):
+        """创建提示窗口并启动渐显动画"""
+        if self.tipwindow or not self.text:
+            return
+        
+        # 定位计算
+        x = self.widget.winfo_rootx() + 25
+        y = self.widget.winfo_rooty() + 25
+        
+        # 创建半透明窗口
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        tw.attributes("-alpha", 0.0)  # 初始完全透明
+        
+        # 样式配置
+        bg_color = judge_theme(1)
+        text_color = judge_theme(2)
+        label = tk.Label(tw, text=self.text, justify='left',
+                        background=bg_color, foreground=text_color,
+                        relief='solid', borderwidth=1,
+                        font=("Microsoft YaHei", 10))
+        label.pack()
+        
+        # 启动渐显动画
+        self.fade_in()
+
+    def fade_in(self):
+        """渐显效果(0.0 -> 1.0)"""
+        self.alpha = min(self.alpha + 0.25, 1.0)
+        self.tipwindow.attributes("-alpha", self.alpha)
+        if self.alpha < 1.0:
+            self.fade_in_id = self.tipwindow.after(20, self.fade_in)
+
+    def fade_out(self):
+        """渐隐效果(1.0 -> 0.0)"""
+        self.alpha = max(self.alpha - 0.25, 0.0)
+        self.tipwindow.attributes("-alpha", self.alpha)
+        if self.alpha > 0.0:
+            self.tipwindow.after(20, self.fade_out)
+        else:
+            self.tipwindow.destroy()
+            self.tipwindow = None
+            self.alpha = 0.0
+
+    def __del__(self):
+        """对象销毁时清理资源"""
+        if self.tipwindow:
+            self.tipwindow.destroy()
+
+
 # 更新剩余天数
 def update_rest_days():
     current_date = datetime.now().strftime("%Y/%m/%d")
@@ -377,12 +469,14 @@ def update_time():
 def create_tray_icon():
     image = Image.open(resource_path('LOGO.png'))
 
-    menu = (pystray.MenuItem('主页', on_showing), 
-            pystray.MenuItem('AI智答', open_ai_assistant_window),
-            pystray.MenuItem('统计报告', open_progress_window),
-            pystray.MenuItem('设置', open_settings_window),
-            pystray.MenuItem('关于应用', open_about_window),
-            pystray.MenuItem('退出', on_closing))
+    menu = (
+        pystray.MenuItem('主页', on_showing),
+        pystray.MenuItem('AI智答', open_ai_assistant_window),
+        pystray.MenuItem('统计报告', open_progress_window),
+        pystray.MenuItem('设置', open_settings_window),
+        pystray.MenuItem('关于应用', open_about_window),
+        pystray.MenuItem('退出', on_closing)
+    )
 
     if (get_num(1) == 0):
         icon = pystray.Icon("LOGO", image, f"学翼（没有添加任务）", menu)
@@ -605,15 +699,298 @@ def delete_task():
 
 # 确认清空任务列表的函数
 def confirm_clear_tasks():
-    if messagebox.askokcancel("确认", "确定要清空任务列表吗？"):
+    if messagebox.askokcancel("确认", "确定要清空任务列表吗？此操作不可恢复"):
         c.execute("DELETE FROM tasks")
-        # c.execute("UPDATE task_counter SET total_tasks=0")
         conn.commit()
         update_task_list()
         sent_notice("您清空了任务列表","任务列表清空成功")
 
 def pomodoro_set_tasks():
-    pass
+    # 获取选中的任务
+    selected = task_list.selection()
+    if not selected:
+        messagebox.showwarning("提示", "请先选择一个任务", parent=root)
+        return
+    
+    # 获取实际任务ID
+    item = task_list.item(selected)
+    task_id = item['values'][0]
+
+    # 创建设置窗口
+    setup_win = tk.Toplevel(root)
+    setup_win.title("番茄钟设置")
+    setup_win.geometry("800x250")
+    
+    ttk.Label(setup_win, text="请选择专注时长（分钟）:", font=('Microsoft Yahei', 12)).pack(pady=10)
+    
+    time_var = tk.StringVar(value="25")
+    duration_combo = ttk.Combobox(
+        setup_win,
+        textvariable=time_var,
+        values=["1", "5", "10", "15", "20", "25", "30", "45", "60", "90", "120", "150", "180", "210", "240", "270", "300", "330", "360", "390", "420", "450", "480", "510", "540", "570", "600"],
+        state="readonly"
+    )
+    duration_combo.pack(pady=5)
+    
+    def start_pomodoro():
+        setup_win.destroy()
+        show_pomodoro_interface(int(time_var.get()), task_id)
+    
+    ttk.Button(setup_win, text="开始专注", command=start_pomodoro).pack(pady=10)
+
+    ttk.Label(setup_win,
+             text="""番茄钟（Pomodoro Technique）是一种经典的时间管理方法，由意大利学者弗朗西斯科·西里洛（Francesco Cirillo）于20世纪80年代提出。
+其核心理念是通过拆分时间单元和强制休息，帮助人们提升专注力、减少拖延，并高效完成任务。
+番茄钟将工作时间划分为多个25分钟的专注单元（称为一个“番茄钟”），每个单元结束后短暂休息5分钟。
+每完成4个番茄钟后，进行一次更长的休息（通常15-30分钟）。""",
+             font=("Microsoft YaHei", 9),
+             foreground="#95a5a6",
+             justify="left").pack(pady=10)
+
+def show_pomodoro_interface(duration, task_id):
+    # 获取任务详情
+    c.execute("SELECT name, due_date, rest_days FROM tasks WHERE id=?", (task_id,))
+    task = c.fetchone()
+    
+    # 创建主窗口
+    pomo_win = tk.Toplevel(root)
+    pomo_win.title(f"番茄钟 - {task[0]}")
+    pomo_win.geometry("800x600")
+    
+    main_frame = ttk.Frame(pomo_win)
+    main_frame.pack(fill='both', expand=True)
+
+    # 一言显示区域
+    try:
+        yiyan = requests.get("https://v1.hitokoto.cn/?c=k").json()
+        yiyan_text = f"『{yiyan['hitokoto']}』 —— {yiyan['from']}"
+    except:
+        yiyan_text = "『学如逆水行舟，不进则退』 —— 《增广贤文》"
+    
+    yiyan_label = ttk.Label(
+        main_frame,
+        text=yiyan_text,
+        font=('华文魏体', 14, 'italic'),
+        wraplength=1000,
+        justify='left'
+    )
+    yiyan_label.pack(pady=20)
+
+    # 分隔线
+    ttk.Separator(main_frame).pack(fill='x', pady=10, padx=30)
+    
+    # 任务信息显示
+    task_frame = ttk.Frame(main_frame)
+    task_frame.pack(pady=10)
+    
+    task_label1 = ttk.Label(task_frame, text=f"您当前正在进行的任务是【{task[0]}】", font=('微软雅黑', 12), justify='center')
+    task_label1.grid(row=0, column=0)
+    task_label2 = ttk.Label(task_frame, text=f"任务将于 {task[1]} 截止，剩余{task[2]}天", font=('微软雅黑', 8), justify='center')
+    task_label2.grid(row=1, column=0)
+    
+    # 计时器显示
+    time_label = ttk.Label(
+        main_frame,
+        text="00:00:00",
+        font=('Consolas', 40),
+    )
+    time_label.pack(pady=20)
+    
+    # 时间进度显示
+    start_time = datetime.now()
+    end_time = start_time + timedelta(minutes=duration)
+    time_info = ttk.Label(
+        main_frame,
+        text=f"{start_time.strftime('%H:%M:%S')} - {end_time.strftime('%H:%M:%S')}",
+        font=('微软雅黑', 8)
+    )
+    time_info.pack()
+    
+    # 计算字体增量
+    add_size = 0
+    def update_font_size(event=None):
+        nonlocal add_size
+        pomo_win.update_idletasks()
+        win_height = pomo_win.winfo_height()
+        
+        add_size = int(win_height / 100 )
+        # 更新所有字体设置
+        yiyan_label.config(font=('华文魏体', 13+add_size, 'italic'))
+        task_label1.config(font=('微软雅黑', 10+add_size))
+        task_label2.config(font=('微软雅黑', 8+add_size))
+        time_label.config(font=('Consolas', 40+add_size))
+        time_info.config(font=('微软雅黑', 8+add_size))
+
+    # 初始化设置
+    pomo_win.bind("<Configure>", update_font_size)
+    update_font_size()
+
+    # 分隔线
+    ttk.Separator(main_frame).pack(fill='x', pady=10, padx=30)
+
+    # 音频控制部分
+    audio_frame = ttk.LabelFrame(main_frame, text="白噪音设置")
+    audio_frame.pack(pady=15, padx=20, anchor='center', ipadx=5, ipady=5)
+    
+    # 白噪音选择
+    pygame.mixer.init()
+    sounds = {
+        "散步时刻": "sound/relaxing_walk.mp3",
+        "溪边蛙鸣": "sound/frogs.mp3",
+        "星辰露营": "sound/camping.mp3",
+        "营火柴声": "sound/campfire.mp3",
+        "雨后天晴": "sound/after_rain.mp3",
+        "大雨滂沱": "sound/heavy_rain.mp3",
+        "自然水流": "sound/stream.mp3",
+        "迷雾森林": "sound/foggy_forest.mp3"
+    }
+    
+    sound_var = tk.StringVar()
+    ttk.Label(audio_frame, text="选择环境音效：").grid(row=0, column=0, padx=5, pady=5)
+    sound_combo = ttk.Combobox(
+        audio_frame,
+        textvariable=sound_var,
+        values=list(sounds.keys()),
+        state="readonly",
+        width=18
+    )
+    sound_combo.grid(row=0, column=1, padx=5, pady=5)
+    
+    # 控制按钮
+    def play_sound():
+        if sound_var.get():
+            pygame.mixer.music.load(resource_path(sounds[sound_var.get()]))
+            pygame.mixer.music.play(-1)
+    
+    
+    paused = [False]
+    
+    play_btn = ttk.Button(audio_frame, text="▶️ 播放", width=10)
+    play_btn.grid(row=0, column=2, padx=5)
+    
+    # 修改后的播放控制逻辑
+    def toggle_play():
+        if not pygame.mixer.music.get_busy() or paused[0]:
+            play_sound()
+            play_btn.config(text="⏸ 暂停")
+            paused[0] = False
+        else:
+            pygame.mixer.music.pause()
+            play_btn.config(text="▶️ 继续")
+            paused[0] = True
+    
+    play_btn.config(command=toggle_play)
+    
+    ai_frame = ttk.LabelFrame(main_frame, text="学习辅助")
+    ai_frame.pack(pady=15, padx=20, anchor='center', ipadx=10, ipady=5)
+    ttk.Button(
+        ai_frame,
+        text="🤖 AI智答",
+        command=open_ai_assistant
+    ).pack()
+    Tooltip(ai_frame.winfo_children()[0], "专注期间的私人助手")
+
+    
+    # 控制面板
+    ctrl_frame = ttk.Frame(main_frame)
+    ctrl_frame.pack(side='bottom', fill='x', pady=10)
+    
+    # 窗口置顶选项
+    topmost_var = tk.IntVar(value=0)
+    def toggle_topmost():
+        pomo_win.attributes('-topmost', topmost_var.get())
+    topmost_check = ttk.Checkbutton(
+        ctrl_frame,
+        text="窗口置顶",
+        variable=topmost_var,
+        command=toggle_topmost
+    )
+    topmost_check.pack(side='left', padx=20)
+    
+    # 初始化窗口置顶状态
+    topmost_var.set(False)
+    toggle_topmost()
+
+    # 计时逻辑
+    elapsed = [0]  # 使用列表实现闭包效果
+    running = [True]
+    
+    def update_timer():
+        # 先检查时间条件，再检查运行状态
+        if elapsed[0] < duration * 60:
+            if running[0]:  # 只有运行状态为True时才更新
+                elapsed[0] += 1
+                m, s = divmod(elapsed[0], 60)
+                h, m = divmod(m, 60)
+                time_label.config(text=f"{h:02d}:{m:02d}:{s:02d}")
+                pomo_win.after(1000, update_timer)
+            else:  # 运行状态被设为False时直接返回
+                return
+        else:
+            finish_pomodoro(True)  # 仅当自然结束时触发
+    
+    def finish_pomodoro(natural_end):
+        running[0] = False  # 立即停止计时器
+        pygame.mixer.music.stop()
+
+        should_proceed = True
+        # 仅当非自然结束需要确认
+        if not natural_end:
+            should_proceed = messagebox.askyesno(
+                "退出提示",
+                "计时尚未完成，确定要提前结束吗？\n（建议坚持完成当前番茄钟）",
+                icon='warning',
+                parent=pomo_win
+            )
+
+        if should_proceed:
+            if messagebox.askyesno(
+                "计时结束", 
+                f"是否已经完成任务【{task[0]}】？",
+                parent=pomo_win
+            ):
+                # 获取原始状态
+                c.execute("SELECT completed FROM tasks WHERE id=?", (task_id,))
+                current_status = c.fetchone()[0].strip()
+                
+                if current_status.strip() == '':
+                    conn.commit()  
+                    
+                    total = get_num(1)
+                    actual_completed = get_num(2)+1
+                    remaining = get_num(3)-1
+                    progress = actual_completed / total * 100
+                    print(total, actual_completed, remaining)
+
+                    if remaining == 0:
+                        sent_notice("完成了所有任务，真厉害！", f"已完成{progress}%，共计{total}个任务")
+                    else:
+                        sent_notice("搞定一个任务，太棒了！", f"已完成{progress}%，还有{remaining}个任务待完成")
+
+                # 更新任务状态
+                c.execute("UPDATE tasks SET completed='✅' WHERE id=?", (task_id,))
+                conn.commit()
+                update_task_list()
+
+            # 更新番茄钟记录
+            minutes = elapsed[0] // 60
+            c.execute("UPDATE pomodoro_records SET total_sessions = total_sessions + ?, total_minutes = total_minutes + ?", 
+                    (1, minutes,))
+            conn.commit()
+            
+            pomo_win.destroy()
+        else:
+            # 用户取消时恢复计时
+            running[0] = True
+            update_timer()
+    
+    ttk.Button(
+        ctrl_frame,
+        text="退出专注",
+        command=lambda: finish_pomodoro(False)
+    ).pack(side='right', padx=20)
+    
+    update_timer()
 
 button_frame = ttk.Frame(root)
 button_frame.grid(row=4, column=0, pady=10)
@@ -621,7 +998,7 @@ button_frame.grid(row=4, column=0, pady=10)
 # 显示进度报告
 def show_progress_report():
     progress_window = tk.Toplevel(root)
-    progress_window.title("学习数据统计")
+    progress_window.title("统计报告")
     progress_window.geometry("1200x700")
     
     # 设置全局字体
@@ -775,9 +1152,42 @@ def show_progress_report():
     
     text_area.configure(state="disabled")
 
+    # 在右侧区域添加番茄钟统计
+    pomodoro_frame = ttk.LabelFrame(right_frame, text="专注数据", style="Report.TLabelframe")
+    pomodoro_frame.pack(fill="both", expand=True, pady=10)
+    
+    c.execute("SELECT * FROM pomodoro_records")
+    pomo_data = c.fetchone() or (0, 0)
+    conn.commit()
+
+    # 卡片式布局
+    pomo_grid = ttk.Frame(pomodoro_frame)
+    pomo_grid.pack(padx=10, pady=10, fill='both', expand=True)
+    
+    metrics = [
+        ("🍅 专注次数", pomo_data[0] or 0, "#1cc88a"),
+        ("⏳ 总时长", f"{pomo_data[1] or 0} 分钟", "#4e73df"),
+        ("⏱️ 平均时长", 
+         f"{pomo_data[1]/pomo_data[0]:.1f} 分钟" if pomo_data[1] > 0 else "0 分钟", 
+         "#f6c23e")
+    ]
+    
+    for i, (title, value, color) in enumerate(metrics):
+        card = ttk.Frame(pomo_grid, relief="groove", borderwidth=1)
+        card.grid(row=0, column=i, padx=5, pady=5, sticky="nsew")
+        
+        ttk.Label(card, text=title, style="Report.TLabel").pack(pady=5)
+        ttk.Label(card, text=str(value), 
+                 font=("Microsoft YaHei", 14, "bold"), 
+                 foreground=color).pack(pady=5)
+    
+    # 布局调整
+    for i in range(3):
+        pomo_grid.columnconfigure(i, weight=1)
+
     # 布局权重配置
-    main_frame.columnconfigure(0, weight=3)  # 左侧占3/4
-    main_frame.columnconfigure(1, weight=1)  # 右侧占1/4
+    main_frame.columnconfigure(0, weight=2)
+    main_frame.columnconfigure(1, weight=2)
     main_frame.rowconfigure(0, weight=1)
 
     # 窗口关闭处理
@@ -806,7 +1216,7 @@ def open_about():
 
     # 版本信息
     ttk.Label(content_frame,
-             text="V1.0.4", 
+             text=Version, 
              font=("Microsoft YaHei", 10),
              foreground="#7f8c8d").pack(pady=5)
 
@@ -818,6 +1228,7 @@ def open_about():
 亮点功能：
 ✓ 任务管理与提醒
 ✓ 智能学习进度跟踪
+✓ 番茄钟专注计时
 ✓ 数据可视化统计
 ✓ 接入Deepseek-V3&R1模型，AI在线专业解答
 ✓ 多主题界面适配
@@ -840,7 +1251,7 @@ def open_about():
 
     # 版权信息
     ttk.Label(content_frame,
-             text="所有图标均来源于阿里巴巴矢量图标库 · 如有侵权请联系删除",
+             text="部分图标来源于阿里巴巴矢量图标库 · 如有侵权请联系删除",
              font=("Microsoft YaHei", 9),
              foreground="#95a5a6",
              justify="center").pack(pady=10)
@@ -859,7 +1270,7 @@ def open_about():
                            foreground="#3498db",
                            cursor="hand2")
     link_label.pack(pady=3)
-    link_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/TiantianYZJ/Study-Assistant"))
+    link_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/TiantianYZJ/TaskWing"))
     
     # ========== 新增更新日志部分 ==========
     changelog_frame = ttk.LabelFrame(content_frame, text="更新日志", padding=10)
@@ -899,7 +1310,7 @@ def open_about():
 def open_settings():
     setting_window = tk.Toplevel(root)
     setting_window.title("程序设置")
-    setting_window.geometry("450x300")
+    setting_window.geometry("450x500")
     setting_window.resizable(False, False)
     
     # ========== 主题设置 ==========
@@ -942,11 +1353,6 @@ def open_settings():
         """打开自启动目录"""
         startup_path = get_startup_folder()
         if startup_path:
-            messagebox.showinfo("操作指南",
-                "1. 在打开的文件夹中选中\"学翼\"，右键呼出菜单\n"
-                "2. 选择【删除】\n"
-                "单击【确定】以打开系统自启动目录",
-                parent=setting_window)
             os.startfile(startup_path)
         else:
             messagebox.showerror("错误", "找不到自启动目录", parent=setting_window)
@@ -962,7 +1368,7 @@ def open_settings():
         
         try:
             if os.path.exists(shortcut_path):
-                if not messagebox.askyesno("确认", "已存在旧版本的快捷方式，是否覆盖？", parent=setting_window):
+                if not messagebox.askyesno("确认", "已存在旧版本或已添加过的快捷方式，是否覆盖？", parent=setting_window):
                     return
                 
             winshell.CreateShortcut(
@@ -971,31 +1377,100 @@ def open_settings():
                 Icon=(target_path, 0),
                 Description="学翼"
             )
-            messagebox.showinfo("成功", "开机自启动配置成功！重启设备生效", parent=setting_window)
+            messagebox.showinfo("成功", "开机自启动配置成功！", parent=setting_window)
         except Exception as e:
             messagebox.showerror("错误", f"配置失败：{str(e)}", parent=setting_window)
+
+    # 删除
+    def delete_autostart_shortcut():
+        shortcut_path = os.path.join(winshell.startup(), "学翼.lnk")
+        
+        try:
+            if os.path.exists(shortcut_path):
+                os.remove(shortcut_path)
+                messagebox.showinfo("成功", "已取消开机自启动", parent=setting_window)
+            else:
+                messagebox.showinfo("提示", "您没有配置过开机自启动", parent=setting_window)
+        except Exception as e:
+            messagebox.showerror("错误", f"取消失败：{str(e)}", parent=setting_window)
 
     # 操作按钮
     ttk.Button(
         autostart_frame,
         text="⚡ 自动配置",
         command=create_autostart_shortcut,
-        width=18
+        width=13
     ).grid(row=0, column=1, padx=5, pady=5)
+    Tooltip(autostart_frame.winfo_children()[0], "设置开机自启动")
 
     ttk.Button(
         autostart_frame,
         text="❌ 取消配置",
-        command=open_startup_folder,
-        width=18
+        command=delete_autostart_shortcut,
+        width=13
     ).grid(row=0, column=2, padx=5, pady=5)
+    Tooltip(autostart_frame.winfo_children()[1], "取消开机自启动")
 
-    # 说明文字
-    ttk.Label(autostart_frame, 
-             text="将本程序添加到开机启动项", 
-             foreground="#666666",
-             font=("Microsoft YaHei", 9)
-             ).grid(row=1, column=0, columnspan=2)
+    ttk.Button(
+        autostart_frame,
+        text="📂 自启动目录",
+        command=open_startup_folder,
+        width=13
+    ).grid(row=0, column=3, padx=5, pady=5)
+    Tooltip(autostart_frame.winfo_children()[2], "打开自启动目录")
+    
+    danger_frame = ttk.LabelFrame(setting_window, text="高级操作", padding=10)
+    danger_frame.pack(pady=10, fill='x', padx=10)
+    
+    def delete_all_data():
+        # 二级确认
+        if not messagebox.askokcancel(
+            "警告", 
+            "此操作将永久删除以下所有数据：\n"
+            "• 所有任务数据\n• 累计任务数\n• 保存的主题设置\n• 保存的AI智答设置\n• 番茄钟统计记录\n"
+            "请注意，该操作不可撤销！"
+        ):
+            return
+            
+        # 三级验证
+        verification_code = ''.join(random.choices('ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz123456789', k=6))
+        user_input = simpledialog.askstring(
+            "最后确认", 
+            f"请输入下方验证码（区分大小写）以确认删除\n验证码：{verification_code}\n"
+            "这将清除所有数据且无法恢复，请三思！\n",
+            parent=setting_window
+        )
+        
+        if user_input == verification_code:
+            # 执行删除操作
+            tables = ['tasks', 'task_counter', 'theme_settings', 'ai_settings', 'pomodoro_records']
+            for table in tables:
+                c.execute(f"DELETE FROM {table}")
+            
+            # 重置默认设置
+            c.execute("INSERT INTO theme_settings VALUES (1, '自动切换')")
+            c.execute("INSERT INTO task_counter (total_tasks) VALUES (0)")
+            c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', 'Deepseek', 'window')")
+            conn.commit()
+            
+            # 更新界面
+            update_task_list()
+            theme_var.set('自动切换')
+            set_theme('自动切换')
+            messagebox.showinfo("完成", "所有数据已成功删除", parent=setting_window)
+        else:
+            messagebox.showwarning("取消", "验证码不匹配，删除操作已取消", parent=setting_window)
+
+    ttk.Button(
+        danger_frame,
+        text="⚠️ 删除所有数据",
+        command=delete_all_data,
+        style="Danger.TButton"
+    ).pack(pady=5)
+    Tooltip(danger_frame.winfo_children()[0], "删除您保存的所有数据")
+
+    # 定义危险按钮样式
+    style.configure("Danger.TButton", foreground="orange", background="#dc3545", font=("Microsoft YaHei", 10, "bold"))
 
     # ========== 保存按钮 ==========
     btn_frame = ttk.Frame(setting_window)
@@ -1107,7 +1582,7 @@ def open_ai_assistant():
         provider, api_key = c.fetchone()
         
         if not question:
-            messagebox.showwarning("提示", "请输入问题内容")
+            messagebox.showwarning("提示", "请输入问题内容", parent=ai_window)
             return
             
         # 显示提示
@@ -1157,7 +1632,7 @@ def open_ai_assistant():
                     ai_window.update()
                 
             except Exception as e:
-                messagebox.showerror("错误", f"请求失败：{str(e)}")
+                messagebox.showerror("错误", f"请求失败：{str(e)}", parent=ai_window)
             finally:
                 input_text.delete("1.0", "end")
         elif provider == "硅基流动":
@@ -1201,9 +1676,9 @@ def open_ai_assistant():
                         html_label.set_html(html_text)
                         ai_window.update()
                 else:
-                    messagebox.showerror("错误", f"请求失败：{response.text}")
+                    messagebox.showerror("错误", f"请求失败：{response.text}", parent=ai_window)
             except Exception as e:
-                messagebox.showerror("错误", f"网络请求异常：{str(e)}")
+                messagebox.showerror("错误", f"请求异常：{str(e)}", parent=ai_window)
 
     ttk.Button(
         control_frame,
@@ -1367,9 +1842,13 @@ edit_button = ttk.Frame(task_frame)
 edit_button.grid(row=1, column=0, pady=10, sticky="nsew")
 
 ttk.Button(edit_button, text="📝 编辑", command=edit_task, width=10).grid(row=0, column=0, padx=3)
+Tooltip(edit_button.winfo_children()[0], "修改选定任务的详细信息")
 ttk.Button(edit_button, text="🗑️ 删除", command=delete_task, width=10).grid(row=0, column=1, padx=3)
+Tooltip(edit_button.winfo_children()[1], "永久移除选定的任务")
 ttk.Button(edit_button, text="🧹 清空", command=confirm_clear_tasks, width=10).grid(row=0, column=2, padx=3)
-ttk.Button(edit_button, text="🍅 番茄钟", command=pomodoro_set_tasks, width=10).grid(row=0, column=3, padx=3)
+Tooltip(edit_button.winfo_children()[2], "清空当前任务列表")
+ttk.Button(edit_button, text="🍅 专注", command=pomodoro_set_tasks, width=10).grid(row=0, column=3, padx=3)
+Tooltip(edit_button.winfo_children()[3], "启动番茄钟专注计时器")
 
 # 底部功能区
 bottom_frame = ttk.Frame(root, padding=10)
@@ -1384,6 +1863,7 @@ name_frame.grid(row=0, column=0, sticky="w", pady=10)
 ttk.Label(name_frame, text="任务名称:").grid(row=0, column=0, sticky="w")
 name_entry = ttk.Entry(name_frame, width=40)
 name_entry.grid(row=0, column=1, padx=5)
+name_entry.bind("<Return>", lambda e: add_task())
 
 # 创建一个新的 Frame 来放置日期选择的 Combobox
 date_frame = ttk.Frame(add_task_frame)
@@ -1409,9 +1889,13 @@ func_btn_frame = ttk.Frame(bottom_frame)
 func_btn_frame.pack(side="right", padx=10)
 
 ttk.Button(func_btn_frame, text="🤖 AI智答", command=open_ai_assistant, width=12).grid(row=0, column=0, pady=2)
+Tooltip(func_btn_frame.winfo_children()[0], "使用AI智能回答问题")
 ttk.Button(func_btn_frame, text="📈 统计报告", command=show_progress_report, width=12).grid(row=1, column=0, pady=2)
+Tooltip(func_btn_frame.winfo_children()[1], "查看学习数据可视化报告")
 ttk.Button(func_btn_frame, text="⚙️ 设置", command=open_settings, width=12).grid(row=2, column=0, pady=2)
+Tooltip(func_btn_frame.winfo_children()[2], "修改应用设置")
 ttk.Button(func_btn_frame, text="ℹ️ 关于应用", command=open_about, width=12).grid(row=3, column=0, pady=2)
+Tooltip(func_btn_frame.winfo_children()[3], "查看应用信息")
 
 # 创建托盘
 def on_closing(icon, item):

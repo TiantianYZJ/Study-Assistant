@@ -55,5 +55,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='学翼V1.0.4' 
+    name='学翼V1.0.5' 
 )
