@@ -6,7 +6,7 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.0.6"
+Version = "V1.0.7"
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -36,6 +36,7 @@ CHANGELOG = [
     "V1.0.4-2024.02.20 1、优化【清空】代码逻辑；2、正式确定应用名：中文“学翼”，英文“TaskWing”",
     "V1.0.5-2024.02.22 1、新增【专注】，计入统计报告，助力高效学习；2、重要按钮增加悬停提示；3、【设置】新增【删除所有数据】，并优化操作逻辑",
     "V1.0.6-2024.02.22 1、因Deepseek关闭充值入口，【AI智答】暂停提供该渠道共享API，该渠道私有API不受影响；2、优化【专注】；3、优化【设置】",
+    "V1.0.7-2024.02.23 1、优化按钮名称；2、主页面字体调整，更显眼；3、【统计报告】优化数据统计逻辑；4、接入日期选择器控件，选择日期更直观",
 ]
 
 import random
@@ -66,6 +67,7 @@ import requests
 from flask import Flask, render_template
 import pygame  
 from datetime import timedelta
+from tkcalendar import Calendar
 
 # Flask配置
 flask_app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -203,11 +205,14 @@ c.execute('''CREATE TABLE IF NOT EXISTS pomodoro_records (
              total_sessions INTEGER DEFAULT 0,
              total_minutes INTEGER DEFAULT 0)''')
 conn.commit()
-# c.execute("SELECT * FROM pomorodo_records")
-# pomodoro_records = c.fetchall()
+c.execute("SELECT COUNT(*) FROM pomodoro_records")
+if c.fetchone()[0] == 0:
+    c.execute("INSERT INTO pomodoro_records (total_sessions, total_minutes) VALUES (0, 0)")
+conn.commit()
+pomodoro_records = c.fetchall() or (0, 0)
 
 # 检查读取的数据
-print(tasks, task_counter, theme_settings, ai_settings)
+print(tasks, task_counter, theme_settings, ai_settings, pomodoro_records)
 
 # 获取任务总量、已完成数量和待完成数量
 def get_num(mode):
@@ -502,51 +507,54 @@ def update_task_list():
 # 添加任务
 def add_task():
     current_date = datetime.now().strftime("%Y/%m/%d")
-    name = name_entry.get()
-    year = year_combobox.get()
-    month = month_combobox.get()
-    day = day_combobox.get()
-    due_date = f"{year}/{month}/{day}"
-    completed = " "
+    name = name_entry.get().strip()
+    due_date = date_entry.get().strip()
     
-    # 计算剩余天数
-    due_date_obj = datetime.strptime(due_date, "%Y/%m/%d")
-    rest_days = (due_date_obj - datetime.strptime(current_date, "%Y/%m/%d")).days
-
-    if name and year and month and day:
-        # 插入任务并更新计数器
-        c.execute(
-        "INSERT INTO tasks (name, due_date, rest_days, completed) VALUES (?, ?, ?, ?)",
-        (name, due_date, rest_days, completed)
-        )
-        c.execute("UPDATE task_counter SET total_tasks = total_tasks + 1")
-        conn.commit()
-        
-        # 重新编号任务ID
-        c.execute("SELECT id FROM tasks ORDER BY id")
-        ids = [row[0] for row in c.fetchall()]
-        for i, task_id in enumerate(ids):
-            c.execute("UPDATE tasks SET id=? WHERE id=?", (i + 1, task_id))
-        conn.commit()
+    if not name:
+        messagebox.showerror("错误", "任务名称不能为空")
+        return
     
+    try:
+        # 先转换为datetime对象再进行计算
+        due_date_obj = datetime.strptime(due_date, "%Y/%m/%d")
+        current_date_obj = datetime.strptime(current_date, "%Y/%m/%d")
+    except ValueError:
+        messagebox.showerror("错误", "日期格式无效，请使用YYYY/MM/DD格式")
+        return
 
-        update_task_list()
-        name_entry.delete(0, tk.END)
-        sent_notice("您添加了一个任务", name)
-    else:
-        messagebox.showwarning("警告", "请填写所有任务信息。")
+    # 计算剩余天数（使用datetime对象）
+    rest_days = (due_date_obj - current_date_obj).days
+
+    # 插入任务并更新计数器
+    c.execute(
+    "INSERT INTO tasks (name, due_date, rest_days, completed) VALUES (?, ?, ?, ' ')",
+    (name, due_date, rest_days)
+    )
+    c.execute("UPDATE task_counter SET total_tasks = total_tasks + 1")
+    conn.commit()
+    
+    # 重新编号任务ID
+    c.execute("SELECT id FROM tasks ORDER BY id")
+    ids = [row[0] for row in c.fetchall()]
+    for i, task_id in enumerate(ids):
+        c.execute("UPDATE tasks SET id=? WHERE id=?", (i + 1, task_id))
+    conn.commit()
+
+    update_task_list()
+    name_entry.delete(0, tk.END)
+    sent_notice("您添加了一个任务", name)
 
 # 编辑任务
 def edit_task():
     selected = task_list.selection()
     if not selected:
-        messagebox.showwarning("警告", "请选择一个任务进行编辑。")
+        messagebox.showwarning("警告", "请选择一个任务进行修改。")
         return
     item = task_list.item(selected)
     task_id, name, due_date, rest_days, completed, *extra_values = item['values']
     
     edit_window = tk.Toplevel(root)
-    edit_window.title("编辑任务")
+    edit_window.title("修改任务")
     edit_window.geometry("500x300")
     edit_window.resizable(False, False)
     
@@ -561,46 +569,41 @@ def edit_task():
     # 任务名称
     ttk.Label(info_frame, text="任务名称:").grid(row=0, column=0, sticky="w", padx=5)
     name_entry = ttk.Entry(info_frame, width=40)
+    name_entry.bind("<Return>", lambda e: save_changes())
     name_entry.insert(0, name)
-    name_entry.grid(row=0, column=1, columnspan=3, sticky="w", padx=5)  # 水平扩展
+    name_entry.grid(row=0, column=1, columnspan=3, sticky="w", padx=5)
 
     # ========== 截止日期部分 ==========
     ttk.Label(info_frame, text="截止日期:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
-    due_date_parts = due_date.split('/')
     
-    year_var = tk.StringVar(value=due_date_parts[0])
-    month_var = tk.StringVar(value=due_date_parts[1])
-    day_var = tk.StringVar(value=due_date_parts[2])
+    # 创建日期输入框
+    date_entry = ttk.Entry(info_frame, width=12, font=('Microsoft YaHei', 9))
+    date_entry.insert(0, due_date)  # 使用原日期初始化
+    date_entry.grid(row=1, column=1, sticky="w", padx=5, pady=10)
     
-    # 年份选择
-    year_combo = ttk.Combobox(
-        info_frame, 
-        textvariable=year_var,
-        values=[str(y) for y in range(2023, 2051)],
-        width=7
-    )
-    year_combo.grid(row=1, column=1, sticky="w", padx=5, pady=5)  # 调整列位置
-    ttk.Label(info_frame, text="年").grid(row=1, column=1, sticky="w", padx=75, pady=5)
+    def set_edit_date():
+        def on_date_select():
+            date_entry.delete(0, tk.END)
+            date_entry.insert(0, cal.get_date())
+            top.grab_release()
+            top.destroy()
+        
+        # 解析原始日期
+        init_year, init_month, init_day = map(int, due_date.split('/'))
+        
+        top = tk.Toplevel(edit_window)
+        top.title("选择日期")
+        cal = Calendar(top, 
+                      selectmode='day',
+                      year=init_year,
+                      month=init_month,
+                      day=init_day,
+                      date_pattern='y/mm/dd')
+        cal.pack(padx=10, pady=10)
+        ttk.Button(top, text="确定", command=on_date_select).pack(pady=10)
     
-    # 月份选择
-    month_combo = ttk.Combobox(
-        info_frame,
-        textvariable=month_var,
-        values=[str(m).zfill(2) for m in range(1, 13)],
-        width=5
-    )
-    month_combo.grid(row=1, column=1, sticky="w", padx=100, pady=5)
-    ttk.Label(info_frame, text="月").grid(row=1, column=1, sticky="w", padx=160, pady=5)
-    
-    # 日期选择
-    day_combo = ttk.Combobox(
-        info_frame,
-        textvariable=day_var,
-        values=[str(d).zfill(2) for d in range(1, 32)],
-        width=5
-    )
-    day_combo.grid(row=1, column=1, sticky="w", padx=185, pady=5)
-    ttk.Label(info_frame, text="日").grid(row=1, column=1, sticky="w", padx=245, pady=5)
+    # 添加日期选择按钮
+    ttk.Button(info_frame, text="📅 选择", command=set_edit_date).grid(row=1, column=1, padx=120, pady=10)
 
     # ========== 任务状态部分 ==========
     status_frame = ttk.LabelFrame(main_frame, text="任务状态", padding=10)
@@ -620,13 +623,24 @@ def edit_task():
     btn_frame.pack(pady=10)
 
     def save_changes():
+        current_date = datetime.now().strftime("%Y/%m/%d")
         new_name = name_entry.get()
-        new_date = f"{year_var.get()}/{month_var.get()}/{day_var.get()}"
         new_status = "✅" if completed_var.get() else " "
         
-        # 计算剩余天数
-        new_due_date_obj = datetime.strptime(new_date, "%Y/%m/%d")
-        new_rest_days = (new_due_date_obj - datetime.strptime(datetime.now().strftime("%Y/%m/%d"), "%Y/%m/%d")).days
+        new_name = name_entry.get().strip()
+        new_date = date_entry.get().strip()
+        
+        # 验证日期格式
+        try:
+            datetime.strptime(new_date, "%Y/%m/%d")
+        except ValueError:
+            messagebox.showerror("错误", "日期格式无效，请使用YYYY/MM/DD格式")
+            return
+        
+        # 计算新剩余天数
+        current_date = datetime.now().date()
+        due_date_obj = datetime.strptime(new_date, "%Y/%m/%d").date()
+        new_rest_days = (due_date_obj - current_date).days
 
         # 获取原始状态
         c.execute("SELECT completed FROM tasks WHERE id=?", (task_id,))
@@ -730,7 +744,7 @@ def pomodoro_set_tasks():
     duration_combo = ttk.Combobox(
         setup_win,
         textvariable=time_var,
-        values=["5", "10", "15", "20", "25", "30", "45", "60", "90", "120", "150", "180", "210", "240", "270", "300", "330", "360", "390", "420", "450", "480", "510", "540", "570", "600"],
+        values=["1", "5", "10", "15", "20", "25", "30", "45", "60", "90", "120", "150", "180", "210", "240", "270", "300", "330", "360", "390", "420", "450", "480", "510", "540", "570", "600"],
         state="readonly"
     )
     duration_combo.pack(pady=5)
@@ -892,12 +906,19 @@ def show_pomodoro_interface(duration, task_id):
         command=open_ai_assistant
     ).pack()
     Tooltip(ai_frame.winfo_children()[0], "专注期间的私人助手")
-
     
     # 控制面板
     ctrl_frame = ttk.Frame(main_frame)
     ctrl_frame.pack(side='bottom', fill='x', pady=10)
     
+    def toggle_pause():
+        running[0] = not running[0]
+        if running[0]:
+            pause_button.config(text="⏸ 暂停")
+            update_timer()  # 恢复时重新启动计时
+        else:
+            pause_button.config(text="▶️ 继续")
+
     # 窗口置顶选项
     topmost_var = tk.IntVar(value=0)
     def toggle_topmost():
@@ -976,14 +997,13 @@ def show_pomodoro_interface(duration, task_id):
                 update_task_list()
 
             # 更新番茄钟记录
-            minutes = elapsed[0] // 60
+            minutes = round(elapsed[0] / 60, 2)
             c.execute("UPDATE pomodoro_records SET total_sessions = total_sessions + ?, total_minutes = total_minutes + ?", 
                     (1, minutes,))
             conn.commit()
             
             pomo_win.destroy()
         else:
-            # 用户取消时恢复计时
             running[0] = True
             update_timer()
     
@@ -992,6 +1012,13 @@ def show_pomodoro_interface(duration, task_id):
         text="退出专注",
         command=lambda: finish_pomodoro(False)
     ).pack(side='right', padx=20)
+
+    pause_button = ttk.Button(
+        ctrl_frame,
+        text="⏸ 暂停",
+        command=lambda: toggle_pause()
+    )
+    pause_button.pack(side='right', padx=5)
 
     pomo_win.protocol("WM_DELETE_WINDOW", lambda: finish_pomodoro(False))
     
@@ -1090,14 +1117,14 @@ def show_progress_report():
         if completed_status == '✅':
             completed += 1
         else:
-            if rest_days > 1:
+            if rest_days >= 1:
                 pending += 1
-            elif rest_days >= 0:
+            elif rest_days == 0:
                 upcoming += 1
             else:
                 expired += 1
 
-    status_labels = ['已完成', '待完成', '待完成-即将截止', '待完成-已截止']
+    status_labels = ['已完成', '进行中', '今日截止', '已过期']
     status_values = [completed, pending, upcoming, expired]
     colors = ['#1cc88a', '#4e73df', '#f6c23e', '#e74a3b']  # 绿、蓝、黄、红
 
@@ -1131,7 +1158,7 @@ def show_progress_report():
     detail_frame.pack(fill="both", expand=True)
 
     # 即将截止任务列表
-    c.execute("SELECT name, due_date, rest_days FROM tasks WHERE rest_days <= 3 ORDER BY rest_days")
+    c.execute("SELECT name, due_date, rest_days FROM tasks WHERE completed != '✅' ORDER BY rest_days")
     urgent_tasks = c.fetchall()
 
     text_area = tk.Text(detail_frame, wrap=tk.WORD, font=("Microsoft YaHei", 10))
@@ -1139,7 +1166,9 @@ def show_progress_report():
     
     # 添加带格式的内容
     text_area.tag_configure("header", font=("Microsoft YaHei", 11, "bold"))
-    text_area.insert(tk.END, "📌 即将截止（剩余3天以内）\n", "header")
+    text_area.tag_configure("deadline_today", foreground="#f6c23e")
+    text_area.tag_configure("deadline_overdue", foreground="#f8312f")
+    text_area.insert(tk.END, "📌 待完成任务\n", "header")
     
     for task in urgent_tasks:
         if (task[2] > 0):
@@ -1149,11 +1178,13 @@ def show_progress_report():
         elif (task[2] == 0):
             text_area.insert(tk.END,
                         f"  • {task[0]}\n"
-                        f"     截止日期：{task[1]} （今日截止）\n\n")
+                        f"     截止日期：{task[1]} （今日截止）\n\n",
+                        "deadline_today")
         else:
             text_area.insert(tk.END, 
-                        f"  • {task[0]}\n"
-                        f"     截止日期：{task[1]} （过期{task[2]*-1}天）\n\n")
+                        f" • {task[0]}\n"
+                        f"     截止日期：{task[1]} （过期{task[2]*-1}天）\n\n",
+                        "deadline_overdue")
     
     text_area.configure(state="disabled")
 
@@ -1162,7 +1193,7 @@ def show_progress_report():
     pomodoro_frame.pack(fill="both", expand=True, pady=10)
     
     c.execute("SELECT * FROM pomodoro_records")
-    pomo_data = c.fetchone() or (0, 0)
+    pomo_data = c.fetchone()
     conn.commit()
 
     # 卡片式布局
@@ -1171,9 +1202,9 @@ def show_progress_report():
     
     metrics = [
         ("🍅 专注次数", pomo_data[0] or 0, "#1cc88a"),
-        ("⏳ 总时长", f"{pomo_data[1] or 0} 分钟", "#4e73df"),
+        ("⏳ 总时长", f"{round(pomo_data[1], 2) or 0} 分钟", "#4e73df"),
         ("⏱️ 平均时长", 
-         f"{pomo_data[1]/pomo_data[0]:.1f} 分钟" if pomo_data[1] > 0 else "0 分钟", 
+         f"{round(pomo_data[1]/pomo_data[0], 2)} 分钟" if pomo_data[1] > 0 else "0 分钟", 
          "#f6c23e")
     ]
     
@@ -1560,12 +1591,12 @@ def open_ai_assistant():
         current = model_var.get()
         new_model = "deepseek-r1" if current == "deepseek-chat" else "deepseek-chat"
         model_var.set(new_model)
-        btn_text = "✅深度思考已开启" if new_model == "deepseek-r1" else "❌深度思考已关闭"
+        btn_text = "✅ 深度思考已开启" if new_model == "deepseek-r1" else "❌ 深度思考已关闭"
         model_btn.config(text=btn_text)  # 保持按钮文本长度一致
 
     model_btn = ttk.Button(
         control_frame,
-        text="❌深度思考已关闭",
+        text="❌ 深度思考已关闭",
         command=toggle_model,
         style="Model.TButton",
         width=18
@@ -1854,21 +1885,22 @@ task_list.heading("状态", text="状态")
 edit_button = ttk.Frame(task_frame)
 edit_button.grid(row=1, column=0, pady=10, sticky="nsew")
 
-ttk.Button(edit_button, text="📝 编辑", command=edit_task, width=10).grid(row=0, column=0, padx=3)
+ttk.Button(edit_button, text="📝 修改", command=edit_task, width=10).grid(row=0, column=0, padx=3)
 Tooltip(edit_button.winfo_children()[0], "修改选定任务的详细信息")
 ttk.Button(edit_button, text="🗑️ 删除", command=delete_task, width=10).grid(row=0, column=1, padx=3)
 Tooltip(edit_button.winfo_children()[1], "永久移除选定的任务")
 ttk.Button(edit_button, text="🧹 清空", command=confirm_clear_tasks, width=10).grid(row=0, column=2, padx=3)
 Tooltip(edit_button.winfo_children()[2], "清空当前任务列表")
-ttk.Button(edit_button, text="🍅 专注", command=pomodoro_set_tasks, width=10).grid(row=0, column=3, padx=3)
+ttk.Button(edit_button, text="🍅 番茄钟", command=pomodoro_set_tasks, width=10).grid(row=0, column=3, padx=3)
 Tooltip(edit_button.winfo_children()[3], "启动番茄钟专注计时器")
 
 # 底部功能区
 bottom_frame = ttk.Frame(root, padding=10)
 bottom_frame.grid(row=2, column=0, sticky="nsew")
+style.configure("Large.TLabelframe.Label", font=('Microsoft YaHei', 12, 'bold'))
 
 # 添加任务模块
-add_task_frame = ttk.LabelFrame(bottom_frame, text="新建任务", padding=10)
+add_task_frame = ttk.LabelFrame(bottom_frame, text="新建任务", style="Large.TLabelframe", padding=10)
 add_task_frame.pack(side="left", padx=10, fill="x", expand=True)
 
 name_frame = ttk.Frame(add_task_frame)
@@ -1883,19 +1915,30 @@ date_frame = ttk.Frame(add_task_frame)
 date_frame.grid(row=1, column=0, sticky="w", pady=10)
 
 ttk.Label(date_frame, text="截止日期:").grid(row=0, column=0, sticky="w")
-year_combobox = ttk.Combobox(date_frame, values=[str(y) for y in range(2025,2051)], width=7)
-year_combobox.set(strftime("%Y"))
-year_combobox.grid(row=0, column=1, padx=2)
-ttk.Label(date_frame, text="年").grid(row=0, column=2, sticky="w")
-month_combobox = ttk.Combobox(date_frame, values=[str(m).zfill(2) for m in range(1,13)], width=5)
-month_combobox.set(strftime("%m"))
-month_combobox.grid(row=0, column=3, padx=2)
-ttk.Label(date_frame, text="月").grid(row=0, column=4, sticky="w")
-day_combobox = ttk.Combobox(date_frame, values=[str(d).zfill(2) for d in range(1,32)], width=5)
-day_combobox.set(strftime("%d"))
-day_combobox.grid(row=0, column=5, padx=2)
-ttk.Label(date_frame, text="日").grid(row=0, column=6, sticky="w")
-ttk.Button(date_frame, text="➕ 添加", command=add_task, width=8).grid(row=0, column=7, padx=5)
+date_entry = ttk.Entry(date_frame, width=12, font=('Microsoft YaHei', 9))
+date_entry.insert(0, datetime.now().strftime("%Y/%m/%d"))  # 默认当前日期
+date_entry.grid(row=0, column=1, padx=5)
+
+def set_add_date():
+    def on_date_select():
+        date_entry.delete(0, tk.END)
+        date_entry.insert(0, cal.get_date())
+        top.grab_release()
+        top.destroy()
+    
+    top = tk.Toplevel(root)
+    top.title("选择日期")
+    cal = Calendar(top, 
+                 selectmode='day',
+                 year=datetime.now().year,
+                 month=datetime.now().month,
+                 day=datetime.now().day,
+                 date_pattern='y/mm/dd')
+    cal.pack(padx=10, pady=10)
+    ttk.Button(top, text="确定", command=on_date_select).pack(pady=5)
+
+ttk.Button(date_frame, text="📅 选择", command=set_add_date).grid(row=0, column=2, padx=5)
+ttk.Button(date_frame, text="➕ 确认添加", command=add_task, width=12).grid(row=0, column=3, padx=5)
 
 # 右侧功能按钮
 func_btn_frame = ttk.Frame(bottom_frame)
