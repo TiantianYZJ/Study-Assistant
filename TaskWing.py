@@ -1,11 +1,12 @@
-# TaskWing - 智能化学习任务管理工具
+# 学翼 - 智能化学习任务管理工具
 # Copyright (C) 2025  TiantianYZJ
 # 
+# 声明：
 # 本程序遵循GPLv3协议：您可以在遵守许可证条款的前提下自由使用、修改和分发。
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.0.5"
+Version = "V1.0.6"
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -34,6 +35,7 @@ CHANGELOG = [
     "V1.0.3-2024.02.16 1、更换高清图标",
     "V1.0.4-2024.02.20 1、优化【清空】代码逻辑；2、正式确定应用名：中文“学翼”，英文“TaskWing”",
     "V1.0.5-2024.02.22 1、新增【专注】，计入统计报告，助力高效学习；2、重要按钮增加悬停提示；3、【设置】新增【删除所有数据】，并优化操作逻辑",
+    "V1.0.6-2024.02.22 1、因Deepseek关闭充值入口，【AI智答】暂停提供该渠道共享API，该渠道私有API不受影响；2、优化【专注】；3、优化【设置】",
 ]
 
 import random
@@ -131,6 +133,8 @@ def sent_notice(t,m):
         threaded=True
     )
 
+    return 0
+
 # 切换窗口置顶状态
 def toggle_topmost():
     is_topmost = topmost_var.get()
@@ -190,7 +194,7 @@ conn.commit()
 # 更新初始化数据
 c.execute("SELECT COUNT(*) FROM ai_settings")
 if c.fetchone()[0] == 0:
-    c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', 'Deepseek', 'window')")
+    c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', '硅基流动', 'window')")
     conn.commit()
 ai_settings = c.fetchall()
 
@@ -268,8 +272,7 @@ frame.grid(row=0, column=1, sticky="nsew")
 root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 
-
-# 创建并启动Flask线程（添加到主窗口初始化之后）
+# 创建并启动Flask线程
 flask_thread = threading.Thread(target=run_flask_server, daemon=True)
 flask_thread.start()
 
@@ -467,7 +470,7 @@ def update_time():
 
 # 显示托盘图标
 def create_tray_icon():
-    image = Image.open(resource_path('LOGO.png'))
+    image = Image.open(resource_path('LOGO.ico'))
 
     menu = (
         pystray.MenuItem('主页', on_showing),
@@ -989,6 +992,8 @@ def show_pomodoro_interface(duration, task_id):
         text="退出专注",
         command=lambda: finish_pomodoro(False)
     ).pack(side='right', padx=20)
+
+    pomo_win.protocol("WM_DELETE_WINDOW", lambda: finish_pomodoro(False))
     
     update_timer()
 
@@ -1309,8 +1314,8 @@ def open_about():
 # ============== 设置界面 ==============
 def open_settings():
     setting_window = tk.Toplevel(root)
-    setting_window.title("程序设置")
-    setting_window.geometry("450x500")
+    setting_window.title("设置")
+    setting_window.geometry("500x400")
     setting_window.resizable(False, False)
     
     # ========== 主题设置 ==========
@@ -1410,14 +1415,6 @@ def open_settings():
         width=13
     ).grid(row=0, column=2, padx=5, pady=5)
     Tooltip(autostart_frame.winfo_children()[1], "取消开机自启动")
-
-    ttk.Button(
-        autostart_frame,
-        text="📂 自启动目录",
-        command=open_startup_folder,
-        width=13
-    ).grid(row=0, column=3, padx=5, pady=5)
-    Tooltip(autostart_frame.winfo_children()[2], "打开自启动目录")
     
     danger_frame = ttk.LabelFrame(setting_window, text="高级操作", padding=10)
     danger_frame.pack(pady=10, fill='x', padx=10)
@@ -1450,7 +1447,7 @@ def open_settings():
             # 重置默认设置
             c.execute("INSERT INTO theme_settings VALUES (1, '自动切换')")
             c.execute("INSERT INTO task_counter (total_tasks) VALUES (0)")
-            c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', 'Deepseek', 'window')")
+            c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', '硅基流动', 'window')")
             conn.commit()
             
             # 更新界面
@@ -1461,13 +1458,29 @@ def open_settings():
         else:
             messagebox.showwarning("取消", "验证码不匹配，删除操作已取消", parent=setting_window)
 
+    # 打开数据库目录按钮
+    ttk.Button(
+        danger_frame,
+        text="📂 查看数据库目录",
+        command=lambda: os.startfile(user_data_dir)
+    ).pack(side='left', pady=5, padx=5)
+    Tooltip(danger_frame.winfo_children()[0], "打开数据库所在目录（手动删除需立即重启程序）")
+
+    
+    ttk.Button(
+        danger_frame,
+        text="📂 查看自启动目录",
+        command=open_startup_folder,
+    ).pack(side='left', pady=5, padx=5)
+    Tooltip(danger_frame.winfo_children()[1], "打开自启动所在目录")
+
     ttk.Button(
         danger_frame,
         text="⚠️ 删除所有数据",
         command=delete_all_data,
         style="Danger.TButton"
-    ).pack(pady=5)
-    Tooltip(danger_frame.winfo_children()[0], "删除您保存的所有数据")
+    ).pack(side='left', pady=5, padx=5)
+    Tooltip(danger_frame.winfo_children()[2], "删除您保存的所有数据")
 
     # 定义危险按钮样式
     style.configure("Danger.TButton", foreground="orange", background="#dc3545", font=("Microsoft YaHei", 10, "bold"))
@@ -1594,7 +1607,7 @@ def open_ai_assistant():
         if provider == "Deepseek":
             try:
                 client = OpenAI(
-                    api_key=api_key if api_key else "sk-6fa677012558401e88b54cde791f9822",  # 替换为默认API
+                    api_key=api_key, #  if api_key else "sk-6fa677012558401e88b54cde791f9822",  # 替换为默认API
                     base_url="https://api.deepseek.com"
                 )
                 
@@ -1731,7 +1744,7 @@ def open_ai_settings(parent):
     api_entry.pack(fill="x", pady=5, padx=5)
     
     ttk.Label(api_frame, 
-             text="留空将使用作者自费默认API\n推荐配置私有API，谢谢理解！",
+             text="因近期Deepseek官方API关闭充值入口，【AI智答】暂停提供Deepseek渠道的共享API，单独配置该渠道私有API或使用硅基流动共享API不受影响\n留空将使用作者自费的共享API\n推荐配置私有API，谢谢理解！",
              font=("Microsoft YaHei", 9),
              foreground="#666666").pack(anchor="w")
     
