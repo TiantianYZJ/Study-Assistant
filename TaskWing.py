@@ -6,7 +6,7 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.0.7"
+Version = "V1.0.8"
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -36,7 +36,8 @@ CHANGELOG = [
     "V1.0.4-2024.02.20 1、优化【清空】代码逻辑；2、正式确定应用名：中文“学翼”，英文“TaskWing”",
     "V1.0.5-2024.02.22 1、新增【专注】，计入统计报告，助力高效学习；2、重要按钮增加悬停提示；3、【设置】新增【删除所有数据】，并优化操作逻辑",
     "V1.0.6-2024.02.22 1、因Deepseek关闭充值入口，【AI智答】暂停提供该渠道共享API，该渠道私有API不受影响；2、优化【专注】；3、优化【设置】",
-    "V1.0.7-2024.02.23 1、优化按钮名称；2、主页面字体调整，更显眼；3、【统计报告】优化数据统计逻辑；4、接入日期选择器控件，选择日期更直观",
+    "V1.0.7-2024.02.22 1、优化按钮名称；2、主页面字体调整，更显眼；3、【统计报告】优化数据统计逻辑；4、接入日期选择器控件，选择日期更直观",
+    "V1.0.8-2024.02.23 1、主题模式新增【跟随系统】；2、浏览器显示回答支持复杂数学公式；3、【专注】新增音量调节；4、【统计报告】优化防溢出",
 ]
 
 import random
@@ -68,6 +69,25 @@ from flask import Flask, render_template
 import pygame  
 from datetime import timedelta
 from tkcalendar import Calendar
+import darkdetect
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from ctypes import cast, POINTER
+from comtypes import CLSCTX_ALL
+
+# 音频管理配置
+def get_current_volume():
+    devices = AudioUtilities.GetSpeakers()
+    interface = devices.Activate(
+        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    volume = cast(interface, POINTER(IAudioEndpointVolume))
+    return round(volume.GetMasterVolumeLevelScalar() * 100)
+
+def set_system_volume(value):
+    devices = AudioUtilities.GetSpeakers()
+    interface = devices.Activate(
+        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    volume = cast(interface, POINTER(IAudioEndpointVolume))
+    volume.SetMasterVolumeLevelScalar(int(float(value))/100, None)
 
 # Flask配置
 flask_app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -300,12 +320,22 @@ theme_settings = c.fetchone()
 
 # 如果没有主题设置，插入默认值
 if not theme_settings:
-    c.execute("INSERT INTO theme_settings (theme_choice) VALUES ('自动切换')")
+    c.execute("INSERT INTO theme_settings (theme_choice) VALUES ('跟随系统')")
     conn.commit()
 
-# 获取当前主题设置
-c.execute("SELECT theme_choice FROM theme_settings")
-current_theme = c.fetchone()[0]
+# 主题适配判断
+def judge_theme(mode):
+    global theme
+    if theme == "light":
+        if mode == 1:
+            return "#ffffff"
+        elif mode == 2:
+            return "black"
+    elif theme == "dark":
+        if mode == 1:
+            return "#333333"
+        elif mode == 2:
+            return "white"
 
 # 设置主题
 def set_theme(theme_choice):
@@ -324,34 +354,40 @@ def set_theme(theme_choice):
         else:
             root.tk.call("set_theme", "light")
             theme = "light"
+    elif theme_choice == "跟随系统":
+        if darkdetect.theme() == "Dark":
+            root.tk.call("set_theme", "dark")
+            theme = "dark"
+        else:
+            root.tk.call("set_theme", "light")
+            theme = "light"
         
-
     # 重新应用表格样式
     style = ttk.Style()
     style.configure("Treeview.Heading", font=('Microsoft YaHei', 14))
     style.configure("Treeview",font=('Microsoft YaHei', 12))
 
+    style.configure("Large.TLabelframe.Label", font=('Microsoft YaHei', 12, 'bold'),background=judge_theme(1), foreground=judge_theme(2))
+
     # 更新数据库中的主题设置
     c.execute("UPDATE theme_settings SET theme_choice=? WHERE id=1", (theme_choice,))
     conn.commit()
 
-# 应用默认主题设置
+c.execute("SELECT theme_choice FROM theme_settings")
+current_theme = c.fetchone()[0]
+conn.commit()
 set_theme(current_theme)
-print(theme)
 
-# 主题适配判断
-def judge_theme(mode):
-    global theme
-    if theme == "light":
-        if mode == 1:
-            return "#ffffff"
-        elif mode == 2:
-            return "black"
-    elif theme == "dark":
-        if mode == 1:
-            return "#333333"
-        elif mode == 2:
-            return "white"
+def update_theme():
+    c.execute("SELECT theme_choice FROM theme_settings")
+    cur_theme = c.fetchone()[0]
+    if cur_theme == "跟随系统":
+        set_theme(cur_theme)
+    conn.commit()
+
+    root.after(100, update_theme)
+
+update_theme()
 
 # Tooltip类
 class Tooltip:
@@ -563,7 +599,7 @@ def edit_task():
     main_frame.pack(fill="both", expand=True, padx=10, pady=10)
     
     # ========== 任务信息部分 ==========
-    info_frame = ttk.LabelFrame(main_frame, text="任务详情", padding=10)
+    info_frame = ttk.LabelFrame(main_frame, text="任务详情", padding=10, style="Large.TLabelframe")
     info_frame.pack(fill="x", pady=5)
     
     # 任务名称
@@ -606,7 +642,7 @@ def edit_task():
     ttk.Button(info_frame, text="📅 选择", command=set_edit_date).grid(row=1, column=1, padx=120, pady=10)
 
     # ========== 任务状态部分 ==========
-    status_frame = ttk.LabelFrame(main_frame, text="任务状态", padding=10)
+    status_frame = ttk.LabelFrame(main_frame, text="任务状态", padding=10, style="Large.TLabelframe")
     status_frame.pack(fill="x", pady=5)
     
     completed_var = tk.BooleanVar(value=(completed == "✅"))
@@ -652,7 +688,7 @@ def edit_task():
             total = get_num(1)
             actual_completed = get_num(2)+1
             remaining = get_num(3)-1
-            progress = actual_completed / total * 100
+            progress = round(actual_completed / total * 100, 2)
             print(total, actual_completed, remaining)
 
             if remaining == 0:
@@ -736,33 +772,95 @@ def pomodoro_set_tasks():
     # 创建设置窗口
     setup_win = tk.Toplevel(root)
     setup_win.title("番茄钟设置")
-    setup_win.geometry("800x250")
+    setup_win.geometry("500x500")  # 增加窗口高度
+    setup_win.resizable(False, False)
     
-    ttk.Label(setup_win, text="请选择专注时长（分钟）:", font=('Microsoft Yahei', 12)).pack(pady=10)
+    # ========== 主容器 ==========
+    main_frame = ttk.Frame(setup_win)
+    main_frame.pack(fill='both', expand=True, padx=20, pady=15)
+    
+    # ========== 设置区域 ==========
+    setup_frame = ttk.Frame(main_frame)
+    setup_frame.pack(fill='x', pady=10)
+    
+    # 标题和输入框
+    header = ttk.Label(setup_frame, 
+                      text="🍅 番茄钟设置",
+                      font=('Microsoft YaHei', 16, 'bold'),
+                      foreground='#4fb9fe')
+    header.pack(pady=5)
+
+    input_frame = ttk.Frame(setup_frame)
+    input_frame.pack(pady=15)
+    
+    ttk.Label(input_frame, 
+             text="专注时长:", 
+             font=('Microsoft YaHei', 12)).grid(row=0, column=0, padx=5)
     
     time_var = tk.StringVar(value="25")
     duration_combo = ttk.Combobox(
-        setup_win,
+        input_frame,
         textvariable=time_var,
-        values=["1", "5", "10", "15", "20", "25", "30", "45", "60", "90", "120", "150", "180", "210", "240", "270", "300", "330", "360", "390", "420", "450", "480", "510", "540", "570", "600"],
-        state="readonly"
+        values=["5", "10", "15", "20", "25", "30", "45", "60", "90", "120", 
+               "150", "180", "210", "240", "270", "300", "330", "360", "390", 
+               "420", "450", "480", "510", "540", "570", "600"],
+        state="readonly",
+        font=('Microsoft YaHei', 11),
+        width=8
     )
-    duration_combo.pack(pady=5)
+    duration_combo.grid(row=0, column=1, padx=10)
+    
+    # ========== 说明区域 ==========
+    desc_frame = ttk.LabelFrame(main_frame, 
+                              text="方法说明", 
+                              padding=15,
+                              style="Custom.TLabelframe")
+    desc_frame.pack(fill='both', expand=True, pady=10)
+    
+    desc_text = """• 基本工作流：
+  1、选择25分钟专注单元
+  2、专注期间不处理其他事务
+  3、完成后休息5分钟
+  4、每完成4个番茄钟休息15-30分钟
+
+• 注意事项：
+  ✔️ 建议使用物理计时器
+  ✔️ 遇到打断需重新开始计时
+  ✔️ 休息时间不要使用电子设备"""
+    
+    ttk.Label(desc_frame, 
+             text=desc_text,
+             font=('Microsoft YaHei', 10),
+             foreground='#7f8c8d',
+             justify='left').pack(anchor='w')
+    
+    # ========== 按钮区域 ==========
+    btn_frame = ttk.Frame(main_frame)
+    btn_frame.pack(pady=15)
     
     def start_pomodoro():
         setup_win.destroy()
         show_pomodoro_interface(int(time_var.get()), task_id)
-    
-    ttk.Button(setup_win, text="开始专注", command=start_pomodoro).pack(pady=10)
 
-    ttk.Label(setup_win,
-             text="""番茄钟（Pomodoro Technique）是一种经典的时间管理方法，由意大利学者弗朗西斯科·西里洛（Francesco Cirillo）于20世纪80年代提出。
-其核心理念是通过拆分时间单元和强制休息，帮助人们提升专注力、减少拖延，并高效完成任务。
-番茄钟将工作时间划分为多个25分钟的专注单元（称为一个“番茄钟”），每个单元结束后短暂休息5分钟。
-每完成4个番茄钟后，进行一次更长的休息（通常15-30分钟）。""",
-             font=("Microsoft YaHei", 9),
-             foreground="#95a5a6",
-             justify="left").pack(pady=10)
+    start_btn = ttk.Button(
+        btn_frame,
+        text="🚀 开始专注",
+        command=lambda:start_pomodoro(),
+        width=15,
+        style="Accent.TButton"
+    )
+    start_btn.pack(pady=5)
+    
+    # 添加样式配置
+    style = ttk.Style()
+    style.configure("Custom.TLabelframe", 
+                   bordercolor='#e0e0e0', 
+                   relief='groove',
+                   font=('Microsoft YaHei', 12, 'bold'))
+    style.configure("Accent.TButton", 
+                   foreground='white',
+                   background='#3498db',
+                   font=('Microsoft YaHei', 12))
 
 def show_pomodoro_interface(duration, task_id):
     # 获取任务详情
@@ -772,7 +870,7 @@ def show_pomodoro_interface(duration, task_id):
     # 创建主窗口
     pomo_win = tk.Toplevel(root)
     pomo_win.title(f"番茄钟 - {task[0]}")
-    pomo_win.geometry("800x600")
+    pomo_win.geometry("800x800")
     
     main_frame = ttk.Frame(pomo_win)
     main_frame.pack(fill='both', expand=True)
@@ -808,10 +906,11 @@ def show_pomodoro_interface(duration, task_id):
     # 计时器显示
     time_label = ttk.Label(
         main_frame,
-        text="00:00:00",
+        text="⏱正计时\n00:00:00",
         font=('Consolas', 40),
+        anchor='center'  # 添加居中对齐
     )
-    time_label.pack(pady=20)
+    time_label.pack(pady=20, fill='both', expand=True)
     
     # 时间进度显示
     start_time = datetime.now()
@@ -830,13 +929,13 @@ def show_pomodoro_interface(duration, task_id):
         pomo_win.update_idletasks()
         win_height = pomo_win.winfo_height()
         
-        add_size = int(win_height / 100 )
+        add_size = int(win_height / 70)
         # 更新所有字体设置
         yiyan_label.config(font=('华文魏体', 13+add_size, 'italic'))
         task_label1.config(font=('微软雅黑', 10+add_size))
         task_label2.config(font=('微软雅黑', 8+add_size))
         time_label.config(font=('Consolas', 40+add_size))
-        time_info.config(font=('微软雅黑', 8+add_size))
+        time_info.config(font=('微软雅黑', 10+add_size))
 
     # 初始化设置
     pomo_win.bind("<Configure>", update_font_size)
@@ -846,7 +945,7 @@ def show_pomodoro_interface(duration, task_id):
     ttk.Separator(main_frame).pack(fill='x', pady=10, padx=30)
 
     # 音频控制部分
-    audio_frame = ttk.LabelFrame(main_frame, text="白噪音设置")
+    audio_frame = ttk.LabelFrame(main_frame, text="音频设置", style="Large.TLabelframe")
     audio_frame.pack(pady=15, padx=20, anchor='center', ipadx=5, ipady=5)
     
     # 白噪音选择
@@ -897,8 +996,26 @@ def show_pomodoro_interface(duration, task_id):
             paused[0] = True
     
     play_btn.config(command=toggle_play)
+
+    # 新增音量控制组件
+    ttk.Label(audio_frame, text="系统音量:").grid(row=1, column=0, padx=5, pady=5)
+    volume_scale = ttk.Scale(
+        audio_frame,
+        from_=0,
+        to=100,
+        value=get_current_volume(),
+        command=lambda v: [  # 添加实时更新逻辑
+            set_system_volume(v),
+            volume_percent.config(text=f"{int(float(v))}%")
+        ]
+    )
+    volume_scale.grid(row=1, column=1, padx=5, pady=5, sticky='ew')
     
-    ai_frame = ttk.LabelFrame(main_frame, text="学习辅助")
+    # 新增实时百分比标签
+    volume_percent = ttk.Label(audio_frame, text=f"{int(volume_scale.get())}%")
+    volume_percent.grid(row=1, column=2, padx=2)
+    
+    ai_frame = ttk.LabelFrame(main_frame, text="学习辅助", style="Large.TLabelframe")
     ai_frame.pack(pady=15, padx=20, anchor='center', ipadx=10, ipady=5)
     ttk.Button(
         ai_frame,
@@ -946,7 +1063,7 @@ def show_pomodoro_interface(duration, task_id):
                 elapsed[0] += 1
                 m, s = divmod(elapsed[0], 60)
                 h, m = divmod(m, 60)
-                time_label.config(text=f"{h:02d}:{m:02d}:{s:02d}")
+                time_label.config(text=f"⏱正计时\n{h:02d}:{m:02d}:{s:02d}")
                 pomo_win.after(1000, update_timer)
             else:  # 运行状态被设为False时直接返回
                 return
@@ -983,7 +1100,7 @@ def show_pomodoro_interface(duration, task_id):
                     total = get_num(1)
                     actual_completed = get_num(2)+1
                     remaining = get_num(3)-1
-                    progress = actual_completed / total * 100
+                    progress = round(actual_completed / total * 100, 2)
                     print(total, actual_completed, remaining)
 
                     if remaining == 0:
@@ -1057,28 +1174,44 @@ def show_progress_report():
     c.execute("SELECT COUNT(*) FROM tasks WHERE rest_days=0")
     tomorrow_tasks = c.fetchone()[0]
 
+    # 数值格式化函数
+    def format_number(num):
+        if num >= 10000:
+            return f"{num/10000:.2f} 万"
+        return str(num)
+
     # 指标卡片布局
     metrics_grid = ttk.Frame(metrics_frame)
-    metrics_grid.pack(padx=10, pady=10)
+    metrics_grid.pack(padx=10, pady=10, fill='both', expand=True)
+
+    # 配置网格列权重
+    for col in range(5):
+        metrics_grid.columnconfigure(col, weight=1, uniform='metric_col')
 
     metrics_data = [
-        ("📋 总任务数", get_num(1), "#4e73df"),
-        ("✅ 已完成", get_num(2), "#1cc88a"),
-        ("⏳ 待完成", get_num(3), "#f6c23e"),
-        ("⏰ 明日过期", tomorrow_tasks, "#e74a3b"),
-        ("📈 累计添加", total_added, "#36b9cc")
+        ("📋 总任务数", format_number(get_num(1) or 0), "#4e73df"),
+        ("✅ 已完成", format_number(get_num(2) or 0), "#1cc88a"),
+        ("⏳ 待完成", format_number(get_num(3) or 0), "#f6c23e"),
+        ("⏰ 明日过期", format_number(tomorrow_tasks or 0), "#e74a3b"),
+        ("📈 累计添加", format_number(total_added or 0), "#36b9cc")
     ]
 
     for i, (title, value, color) in enumerate(metrics_data):
         card = ttk.Frame(metrics_grid, relief="groove", borderwidth=1)
-        card.grid(row=i//3, column=i%3, padx=8, pady=8, sticky="nsew")
+        card.grid(row=0, column=i, padx=8, pady=8, sticky="nsew")
         
-        ttk.Label(card, text=title, style="Report.TLabel").pack(pady=5)
+        # 配置卡片内部元素居中
+        card.columnconfigure(0, weight=1)
+        ttk.Label(card, text=title, style="Report.TLabel").pack(pady=5, anchor='center')
         ttk.Label(card, text=str(value), 
                  font=("Microsoft YaHei", 20, "bold"), 
-                 foreground=color).pack(pady=5)
+                 foreground=color).pack(pady=5, anchor='center')
+    
+    # 布局调整
+    for i in range(5):
+        card.columnconfigure(i, weight=1)
 
-        # 图表区
+    # 图表区
     chart_frame = ttk.LabelFrame(left_frame, text="任务分布", style="Report.TLabelframe")
     chart_frame.pack(fill="both", expand=True, pady=10)
 
@@ -1200,12 +1333,19 @@ def show_progress_report():
     pomo_grid = ttk.Frame(pomodoro_frame)
     pomo_grid.pack(padx=10, pady=10, fill='both', expand=True)
     
+    def format_duration(minutes):
+        if minutes >= 60:
+            return f"{minutes/60:.2f} 小时"
+        return f"{minutes:.2f} 分钟"
+
     metrics = [
         ("🍅 专注次数", pomo_data[0] or 0, "#1cc88a"),
-        ("⏳ 总时长", f"{round(pomo_data[1], 2) or 0} 分钟", "#4e73df"),
+        ("⏳ 总时长", 
+        format_duration(round(pomo_data[1], 2)) if pomo_data[1] else "0 分钟", 
+        "#4e73df"),
         ("⏱️ 平均时长", 
-         f"{round(pomo_data[1]/pomo_data[0], 2)} 分钟" if pomo_data[1] > 0 else "0 分钟", 
-         "#f6c23e")
+        format_duration(round(pomo_data[1]/(pomo_data[0] or 1), 2)) if pomo_data[1] else "0 分钟", 
+        "#f6c23e")
     ]
     
     for i, (title, value, color) in enumerate(metrics):
@@ -1247,7 +1387,7 @@ def open_about():
     ttk.Label(content_frame, 
              text="学翼 - TaskWing", 
              font=("Microsoft YaHei", 18, "bold"),
-             foreground="#2c3e50",
+             foreground="#4fb9fe",
              justify="center").pack(pady=10)
 
     # 版本信息
@@ -1309,7 +1449,8 @@ def open_about():
     link_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/TiantianYZJ/TaskWing"))
     
     # ========== 新增更新日志部分 ==========
-    changelog_frame = ttk.LabelFrame(content_frame, text="更新日志", padding=10)
+    changelog_frame = ttk.LabelFrame(content_frame, text="更新日志", padding=10, style="Large.TLabelframe"
+                                     )
     changelog_frame.pack(fill="both", expand=True, pady=10)
     
     # 滚动条容器
@@ -1350,7 +1491,7 @@ def open_settings():
     setting_window.resizable(False, False)
     
     # ========== 主题设置 ==========
-    theme_frame = ttk.LabelFrame(setting_window, text="界面设置", padding=10)
+    theme_frame = ttk.LabelFrame(setting_window, text="界面设置", padding=10, style="Large.TLabelframe")
     theme_frame.pack(fill="x", padx=10, pady=5)
     
     c.execute("SELECT theme_choice FROM theme_settings")
@@ -1361,14 +1502,14 @@ def open_settings():
     theme_combobox = ttk.Combobox(
         theme_frame,
         textvariable=theme_var,
-        values=["浅色模式", "深色模式", "自动切换"],
+        values=["浅色模式", "深色模式", "跟随系统", "自动切换"],
         state="readonly",
         width=15
     )
     theme_combobox.grid(row=0, column=1, padx=5)
 
     # ========== 自启动设置 ==========
-    autostart_frame = ttk.LabelFrame(setting_window, text="开机自启动", padding=10)
+    autostart_frame = ttk.LabelFrame(setting_window, text="开机自启动", padding=10, style="Large.TLabelframe")
     autostart_frame.pack(fill="x", padx=10, pady=10)
 
     def get_startup_folder():
@@ -1447,7 +1588,7 @@ def open_settings():
     ).grid(row=0, column=2, padx=5, pady=5)
     Tooltip(autostart_frame.winfo_children()[1], "取消开机自启动")
     
-    danger_frame = ttk.LabelFrame(setting_window, text="高级操作", padding=10)
+    danger_frame = ttk.LabelFrame(setting_window, text="高级操作", padding=10, style="Large.TLabelframe")
     danger_frame.pack(pady=10, fill='x', padx=10)
     
     def delete_all_data():
@@ -1476,15 +1617,15 @@ def open_settings():
                 c.execute(f"DELETE FROM {table}")
             
             # 重置默认设置
-            c.execute("INSERT INTO theme_settings VALUES (1, '自动切换')")
+            c.execute("INSERT INTO theme_settings VALUES (1, '跟随系统')")
             c.execute("INSERT INTO task_counter (total_tasks) VALUES (0)")
             c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', '硅基流动', 'window')")
             conn.commit()
             
             # 更新界面
             update_task_list()
-            theme_var.set('自动切换')
-            set_theme('自动切换')
+            theme_var.set('跟随系统')
+            set_theme('跟随系统')
             messagebox.showinfo("完成", "所有数据已成功删除", parent=setting_window)
         else:
             messagebox.showwarning("取消", "验证码不匹配，删除操作已取消", parent=setting_window)
@@ -1495,7 +1636,7 @@ def open_settings():
         text="📂 查看数据库目录",
         command=lambda: os.startfile(user_data_dir)
     ).pack(side='left', pady=5, padx=5)
-    Tooltip(danger_frame.winfo_children()[0], "打开数据库所在目录（手动删除需立即重启程序）")
+    Tooltip(danger_frame.winfo_children()[0], "打开数据库所在目录（⚠️程序运行时禁止删除或重命名数据库）")
 
     
     ttk.Button(
@@ -1511,7 +1652,7 @@ def open_settings():
         command=delete_all_data,
         style="Danger.TButton"
     ).pack(side='left', pady=5, padx=5)
-    Tooltip(danger_frame.winfo_children()[2], "删除您保存的所有数据")
+    Tooltip(danger_frame.winfo_children()[2], "⚠️删除您保存的所有数据⚠️")
 
     # 定义危险按钮样式
     style.configure("Danger.TButton", foreground="orange", background="#dc3545", font=("Microsoft YaHei", 10, "bold"))
@@ -1663,9 +1804,34 @@ def open_ai_assistant():
                 else:
                     global current_response_html
                     current_response_html = f"""
-                    <div class="markdown-body">
-                    {html_content}
-                    </div>
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+                        <script>
+                            document.addEventListener("DOMContentLoaded", function() {{
+                                renderMathInElement(document.querySelector('.markdown-body'), {{
+                                    delimiters: [
+                                        {{left: '$$', right: '$$', display: true}},
+                                        {{left: '$', right: '$', display: false}},
+                                        {{left: '\\(', right: '\\)', display: false}},
+                                        {{left: '\\[', right: '\\]', display: true}}
+                                    ],
+                                    throwOnError: false
+                                }});
+                            }});
+                        </script>
+                    </head>
+                    <body>
+                        <div class="markdown-body">
+                        {html_content}
+                        </div>
+                    </body>
+                    </html>
                     """
 
                     webbrowser.open("http://localhost:5000/ai-response")
@@ -1708,10 +1874,35 @@ def open_ai_assistant():
                         html_label.set_html(html_text)
                     else:
                         current_response_html = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+                        <script>
+                            document.addEventListener("DOMContentLoaded", function() {{
+                                renderMathInElement(document.querySelector('.markdown-body'), {{
+                                    delimiters: [
+                                        {{left: '$$', right: '$$', display: true}},
+                                        {{left: '$', right: '$', display: false}},
+                                        {{left: '\\(', right: '\\)', display: false}},
+                                        {{left: '\\[', right: '\\]', display: true}}
+                                    ],
+                                    throwOnError: false
+                                }});
+                            }});
+                        </script>
+                    </head>
+                    <body>
                         <div class="markdown-body">
                         {html_content}
                         </div>
-                        """
+                    </body>
+                    </html>
+                    """
 
                         webbrowser.open("http://localhost:5000/ai-response")
 
@@ -1745,11 +1936,11 @@ def open_ai_settings(parent):
     main_frame.pack(fill="both", expand=True)
     
     # API设置框架
-    api_frame = ttk.LabelFrame(main_frame, text="API设置", padding=15)
+    api_frame = ttk.LabelFrame(main_frame, text="API设置", padding=15, style="Large.TLabelframe")
     api_frame.pack(fill="x", pady=10)
 
     # 服务商选择框架
-    provider_frame = ttk.LabelFrame(api_frame, text="服务提供商", padding=10)
+    provider_frame = ttk.LabelFrame(api_frame, text="服务提供商", padding=10, style="Large.TLabelframe")
     provider_frame.pack(fill="x", pady=5)
     
     # 获取当前设置
@@ -1791,7 +1982,7 @@ def open_ai_settings(parent):
     ).pack(pady=10)
 
     # ========== 新增回答设置部分 ==========
-    display_frame = ttk.LabelFrame(main_frame, text="回答设置", padding=15)
+    display_frame = ttk.LabelFrame(main_frame, text="回答设置", padding=15, style="Large.TLabelframe")
     display_frame.pack(fill="x", pady=10)
 
     # 获取当前显示模式
@@ -1897,7 +2088,6 @@ Tooltip(edit_button.winfo_children()[3], "启动番茄钟专注计时器")
 # 底部功能区
 bottom_frame = ttk.Frame(root, padding=10)
 bottom_frame.grid(row=2, column=0, sticky="nsew")
-style.configure("Large.TLabelframe.Label", font=('Microsoft YaHei', 12, 'bold'))
 
 # 添加任务模块
 add_task_frame = ttk.LabelFrame(bottom_frame, text="新建任务", style="Large.TLabelframe", padding=10)

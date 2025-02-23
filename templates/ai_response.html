@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI智答 - 学习助手</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <style>
         :root {
             --bg-color: {{ bg_color }};
@@ -260,73 +263,87 @@
         }
 
 
-    /* 表格增强 */
-    .markdown-body table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 1.5rem 0;
-        background: var(--glass-bg);
-        backdrop-filter: blur(8px);
-        border-radius: 12px;
-        overflow: hidden;
-    }
+        /* 表格增强 */
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            overflow: hidden;
+        }
 
-    .markdown-body th,
-    .markdown-body td {
-        padding: 0.75rem 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
+        .markdown-body th,
+        .markdown-body td {
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
-    .markdown-body th {
-        background: rgba(118, 75, 162, 0.3);
-        font-weight: 600;
-    }
+        .markdown-body th {
+            background: rgba(118, 75, 162, 0.3);
+            font-weight: 600;
+        }
 
-    /* 引用块特效 */
-    .markdown-body blockquote {
-        border-left: 4px solid #667eea;
-        margin: 1.5rem 0;
-        padding: 1rem 1.5rem;
-        background: var(--glass-bg);
-        border-radius: 8px;
-        position: relative;
-        font-style: italic;
-    }
+        /* 引用块特效 */
+        .markdown-body blockquote {
+            border-left: 4px solid #667eea;
+            margin: 1.5rem 0;
+            padding: 1rem 1.5rem;
+            background: var(--glass-bg);
+            border-radius: 8px;
+            position: relative;
+            font-style: italic;
+        }
 
-    .markdown-body blockquote::before {
-        content: '"';
-        position: absolute;
-        left: 0.5rem;
-        top: -0.5rem;
-        font-size: 2.5em;
-        color: rgba(118, 75, 162, 0.3);
-    }
+        .markdown-body blockquote::before {
+            content: '"';
+            position: absolute;
+            left: 0.5rem;
+            top: -0.5rem;
+            font-size: 2.5em;
+            color: rgba(118, 75, 162, 0.3);
+        }
 
-    /* 图片增强 */
-    .markdown-body img {
-        max-width: 100%;
-        border-radius: 16px;
-        margin: 1.5rem 0;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-    }
+        /* 图片增强 */
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: 16px;
+            margin: 1.5rem 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
 
-    /* 交互效果增强 */
-    .markdown-body pre:hover {
-        transform: translateX(4px);
-    }
+        /* 交互效果增强 */
+        .markdown-body pre:hover {
+            transform: translateX(4px);
+        }
 
-    .markdown-body img:hover {
-        transform: scale(1.02);
-    }
+        .markdown-body img:hover {
+            transform: scale(1.02);
+        }
 
-    /* 高亮文字 */
-    .markdown-body strong {
-        background: linear-gradient(120deg, #667eea30 0%, #764ba230 100%);
-        padding: 0.1em 0.3em;
-        border-radius: 4px;
-    }
+        /* 高亮文字 */
+        .markdown-body strong {
+            background: linear-gradient(120deg, #667eea30 0%, #764ba230 100%);
+            padding: 0.1em 0.3em;
+            border-radius: 4px;
+        }
 
+        /* 在现有样式中添加公式渲染样式 */
+        .katex {
+            font-size: 1.1em;
+            color: var(--text-color);
+        }
+
+        .katex-display {
+            margin: 1.2em 0;
+            padding: 1em;
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
     </style>
     <style>
         /* 新增代码块样式 */
@@ -375,6 +392,16 @@
     <script>
         // 添加代码块处理逻辑
         document.addEventListener('DOMContentLoaded', () => {
+            // 在现有DOM加载后添加公式渲染
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ],
+                throwOnError: false
+            });
             document.querySelectorAll('pre').forEach(pre => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'code-block-wrapper';
