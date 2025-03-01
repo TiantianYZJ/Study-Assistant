@@ -6,7 +6,7 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.0.9"
+Version = "V1.1.0"
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -39,12 +39,14 @@ CHANGELOG = [
     "V1.0.7-2024.02.22 1、优化按钮名称；2、主页面字体调整，更显眼；3、【统计报告】优化数据统计逻辑；4、接入日期选择器控件，选择日期更直观",
     "V1.0.8-2024.02.23 1、主题模式新增【跟随系统】；2、浏览器显示回答支持复杂数学公式；3、【专注】新增音量调节；4、【统计报告】优化防溢出",
     "V1.0.9-2024.02.28 1、新增更新检测，从此更新更方便；2、重新设计关于页面；3、取消悬浮提示框的渐显渐隐效果，杜绝了闪烁BUG",
+    "V1.1.0-2024.03.02 1、恢复默认API；2、任务列表支持双击和右键操作；3、优化【AI智答】、【关于】；4、添加【通知管理】；5、支持显示AI思考内容；6、【AI智答】支持添加附件",
 ]
 
 import random
 import threading
 import tkinter as tk
 from tkinter import simpledialog
+from tkinter import filedialog
 import tkinter.font as tkFont
 from tkinter import ttk, messagebox
 import sqlite3
@@ -74,6 +76,7 @@ import darkdetect
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
+from docx import Document
 
 # 音频管理配置
 def get_current_volume():
@@ -147,16 +150,18 @@ def resource_path(relative_path):
 # WindowsMessage API
 icon_path = os.path.abspath(resource_path("LOGO.ico"))
 def sent_notice(t,m):
-    toaster = ToastNotifier()
-    toaster.show_toast(
-        title=t,
-        msg=m,
-        icon_path=icon_path,
-        duration=1,
-        threaded=True
-    )
+    c.execute("SELECT enable_notifications FROM notice_settings")
+    if c.fetchone()[0]:
+        toaster = ToastNotifier()
+        toaster.show_toast(
+            title=t,
+            msg=m,
+            icon_path=icon_path,
+            duration=1,
+            threaded=True
+        )
 
-    return 0
+        return 0
 
 # 切换窗口置顶状态
 def toggle_topmost():
@@ -183,29 +188,30 @@ c.execute('''CREATE TABLE IF NOT EXISTS tasks (
              due_date TEXT,
              rest_days INTEGER,
              completed TEXT NOT NULL DEFAULT ' ')''')
-conn.commit()
 c.execute("SELECT * FROM tasks")
 tasks = c.fetchall()
+conn.commit()
 
 # 创建任务计数器表
 c.execute('''CREATE TABLE IF NOT EXISTS task_counter (
              total_tasks INTEGER DEFAULT 0)''')
 conn.commit()
+
 # 初始化计数器
 c.execute("SELECT COUNT(*) FROM task_counter")
 if c.fetchone()[0] == 0:
     c.execute("INSERT INTO task_counter (total_tasks) VALUES (0)")
-    conn.commit()
 c.execute("SELECT * FROM task_counter")
 task_counter = c.fetchall()
+conn.commit()
 
 # 主题设置
 c.execute('''CREATE TABLE IF NOT EXISTS theme_settings (
              id INTEGER PRIMARY KEY AUTOINCREMENT,
              theme_choice TEXT NOT NULL)''')
-conn.commit()
 c.execute("SELECT * FROM theme_settings")
 theme_settings = c.fetchall()
+conn.commit()
 
 # AI配置
 c.execute('''CREATE TABLE IF NOT EXISTS ai_settings (
@@ -213,27 +219,35 @@ c.execute('''CREATE TABLE IF NOT EXISTS ai_settings (
              default_model TEXT,
              provider TEXT,
              display_mode TEXT)''')
-conn.commit()
 # 更新初始化数据
 c.execute("SELECT COUNT(*) FROM ai_settings")
 if c.fetchone()[0] == 0:
-    c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', '硅基流动', 'window')")
-    conn.commit()
+    c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', 'Deepseek', 'window')")
 ai_settings = c.fetchall()
+conn.commit()
+
+c.execute('''CREATE TABLE IF NOT EXISTS notice_settings (
+             enable_notifications INTEGER DEFAULT 1,
+             check_updates INTEGER DEFAULT 1)''')
+# 更新初始化数据
+c.execute("SELECT COUNT(*) FROM notice_settings")
+if c.fetchone()[0] == 0:
+    c.execute("INSERT INTO notice_settings (enable_notifications, check_updates) VALUES (1, 1)")
+notice_settings = c.fetchall()
+conn.commit()
 
 # 在数据库创建部分新增番茄钟记录表
 c.execute('''CREATE TABLE IF NOT EXISTS pomodoro_records (
              total_sessions INTEGER DEFAULT 0,
              total_minutes INTEGER DEFAULT 0)''')
-conn.commit()
 c.execute("SELECT COUNT(*) FROM pomodoro_records")
 if c.fetchone()[0] == 0:
     c.execute("INSERT INTO pomodoro_records (total_sessions, total_minutes) VALUES (0, 0)")
+pomodoro_records = c.fetchall() 
 conn.commit()
-pomodoro_records = c.fetchall() or (0, 0)
 
 # 检查读取的数据
-print(tasks, task_counter, theme_settings, ai_settings, pomodoro_records)
+print(tasks, task_counter, theme_settings, notice_settings, ai_settings, pomodoro_records)
 
 # 获取任务总量、已完成数量和待完成数量
 def get_num(mode):
@@ -488,6 +502,10 @@ def update_time():
 
 # 版本检测
 def version_judge(parent):
+    c.execute("SELECT check_updates FROM notice_settings")
+    if not c.fetchone()[0]:
+        return
+    
     github_api = 'https://api.github.com/repos/tiantianyzj/taskwing/releases/latest'
 
     res = requests.get(github_api).json()
@@ -559,8 +577,8 @@ def version_judge(parent):
                         os.startfile(save_path)  # 打开下载的文件
                         root.destroy()  # 退出程序
                 except Exception as e:
-                    if str(e) == """invalid command name ".!toplevel.!label""":
-                        messagebox.showerror("下载错误", "下载被取消", parent=parent)
+                    if str(e) == "invalid command name \".!toplevel.!label\"":
+                        messagebox.showerror("下载错误", "您手动关闭了下载窗口，下载被取消\n若为误触，可前往【设置】—【检查更新】重新运行该检查程序", parent=parent)
                     else:
                         messagebox.showerror("下载错误", f"下载失败，可能是服务器繁忙\n错误信息： {str(e)}", parent=parent)
                     progress_window.destroy()
@@ -676,6 +694,7 @@ def edit_task():
     date_entry = ttk.Entry(info_frame, width=12, font=('Microsoft YaHei', 9))
     date_entry.insert(0, due_date)  # 使用原日期初始化
     date_entry.grid(row=1, column=1, sticky="w", padx=5, pady=10)
+    date_entry.bind("<Return>", lambda e: save_changes())
     
     def set_edit_date():
         def on_date_select():
@@ -787,6 +806,33 @@ def edit_task():
     edit_window.transient(root)
     edit_window.grab_set()
 
+# 复制并粘贴任务
+def copy_and_paste_task():
+    selected = task_list.selection()
+    if selected:
+        task_id = task_list.item(selected[0], "values")[0]
+        # 获取原始任务数据
+        c.execute("SELECT name, due_date, rest_days, completed FROM tasks WHERE id=?", (task_id,))
+        original = c.fetchone()
+        
+        if original:
+            try:
+                new_name = f"{original[0]}（副本）" 
+                c.execute("INSERT INTO tasks (name, due_date, rest_days, completed) VALUES (?, ?, ?, ?)",
+                        (new_name, original[1], original[2], original[3]))
+                
+                # 重新编号任务ID
+                c.execute("SELECT id FROM tasks ORDER BY id")
+                ids = [row[0] for row in c.fetchall()]
+                for i, task_id in enumerate(ids):
+                    c.execute("UPDATE tasks SET id=? WHERE id=?", (i + 1, task_id))
+                conn.commit()
+
+                update_task_list()
+                sent_notice("您创建了一个任务副本", new_name)
+            except Exception as e:
+                messagebox.showerror("错误", f"复制失败\n错误信息：{str(e)}")
+
 # 删除任务
 def delete_task():
     selected = task_list.selection()
@@ -828,12 +874,17 @@ def pomodoro_set_tasks():
     # 获取实际任务ID
     item = task_list.item(selected)
     task_id = item['values'][0]
+    task_name = item['values'][1]
+    task_due = item['values'][2]
+    task_rest = item['values'][3]
 
     # 创建设置窗口
     setup_win = tk.Toplevel(root)
     setup_win.title("番茄钟设置")
-    setup_win.geometry("500x500")  # 增加窗口高度
+    setup_win.geometry("600x700")  # 增加窗口高度
     setup_win.resizable(False, False)
+    setup_win.transient(root)
+    setup_win.grab_set()
     
     # ========== 主容器 ==========
     main_frame = ttk.Frame(setup_win)
@@ -850,8 +901,18 @@ def pomodoro_set_tasks():
                       foreground='#4fb9fe')
     header.pack(pady=5)
 
-    input_frame = ttk.Frame(setup_frame)
-    input_frame.pack(pady=15)
+    info_frame = ttk.LabelFrame(setup_frame, text="任务信息", style="Large.TLabelframe", padding=15)
+    info_frame.pack(fill='both', expand=True, pady=10)
+
+    ttk.Label(info_frame, 
+             text=f"""当前任务：{task_name}
+截止日期：{task_due}
+剩余天数：{task_rest}""", 
+             font=('Microsoft YaHei', 12),
+             justify='left').grid(row=0, column=0, padx=5)
+
+    input_frame = ttk.LabelFrame(setup_frame, text="时长设置", style="Large.TLabelframe", padding=15)
+    input_frame.pack(fill='both', expand=True, pady=10)
     
     ttk.Label(input_frame, 
              text="专注时长:", 
@@ -869,24 +930,27 @@ def pomodoro_set_tasks():
         width=8
     )
     duration_combo.grid(row=0, column=1, padx=10)
+
+    ttk.Label(input_frame, 
+             text="分钟", 
+             font=('Microsoft YaHei', 12)).grid(row=0, column=2, padx=5)
     
     # ========== 说明区域 ==========
     desc_frame = ttk.LabelFrame(main_frame, 
                               text="方法说明", 
                               padding=15,
-                              style="Custom.TLabelframe")
+                              style="Large.TLabelframe")
     desc_frame.pack(fill='both', expand=True, pady=10)
     
-    desc_text = """• 基本工作流：
+    desc_text = """• 推荐使用方式：
   1、选择25分钟专注单元
   2、专注期间不处理其他事务
   3、完成后休息5分钟
   4、每完成4个番茄钟休息15-30分钟
 
 • 注意事项：
-  ✔️ 建议使用物理计时器
-  ✔️ 遇到打断需重新开始计时
-  ✔️ 休息时间不要使用电子设备"""
+  1、遇到打断需重新开始计时
+  2、休息时间不要使用电子设备"""
     
     ttk.Label(desc_frame, 
              text=desc_text,
@@ -904,7 +968,7 @@ def pomodoro_set_tasks():
 
     start_btn = ttk.Button(
         btn_frame,
-        text="🚀 开始专注",
+        text="⌛️ 开始专注",
         command=lambda:start_pomodoro(),
         width=15,
         style="Accent.TButton"
@@ -913,14 +977,12 @@ def pomodoro_set_tasks():
     
     # 添加样式配置
     style = ttk.Style()
-    style.configure("Custom.TLabelframe", 
-                   bordercolor='#e0e0e0', 
-                   relief='groove',
-                   font=('Microsoft YaHei', 12, 'bold'))
     style.configure("Accent.TButton", 
                    foreground='white',
                    background='#3498db',
                    font=('Microsoft YaHei', 12))
+
+    setup_win.bind("<Return>", lambda e: start_pomodoro())
 
 def show_pomodoro_interface(duration, task_id):
     # 获取任务详情
@@ -946,7 +1008,7 @@ def show_pomodoro_interface(duration, task_id):
         main_frame,
         text=yiyan_text,
         font=('华文魏体', 14, 'italic'),
-        wraplength=1000,
+        wraplength=1300,
         justify='left'
     )
     yiyan_label.pack(pady=20)
@@ -1080,7 +1142,7 @@ def show_pomodoro_interface(duration, task_id):
     ttk.Button(
         ai_frame,
         text="🤖 AI智答",
-        command=open_ai_assistant
+        command=lambda:open_ai_assistant(pomo_win)
     ).pack()
     Tooltip(ai_frame.winfo_children()[0], "专注期间的私人助手")
     
@@ -1208,8 +1270,10 @@ button_frame.grid(row=4, column=0, pady=10)
 def show_progress_report():
     progress_window = tk.Toplevel(root)
     progress_window.title("统计报告")
-    progress_window.geometry("1200x700")
-    
+    progress_window.geometry("1200x700")# 
+    progress_window.transient(root)
+    progress_window.grab_set()
+
     # 设置全局字体
     style = ttk.Style()
     style.configure("Report.TLabelframe", font=("Microsoft YaHei", 12, "bold"))
@@ -1436,8 +1500,9 @@ def show_progress_report():
 def open_about():
     about_window = tk.Toplevel(root)
     about_window.title("关于")
-    about_window.geometry("1000x700")
-    about_window.resizable(False, False)
+    about_window.geometry("1200x800")
+    about_window.transient(root)
+    about_window.grab_set()
     
     # ========== 主容器 ==========
     main_frame = ttk.Frame(about_window)
@@ -1469,16 +1534,15 @@ def open_about():
     content_frame = ttk.Frame(main_frame)
     content_frame.pack(fill='both', expand=True)
 
-    # 左栏（版本信息 + 功能列表）
-    pane = ttk.Frame(content_frame)
-    pane.pack(fill='both', expand=True, padx=20)
+    pane = ttk.PanedWindow(content_frame, orient=tk.HORIZONTAL)
+    pane.pack(fill='x', expand=True, padx=25, pady=10)
 
     # 功能列表
     features_frame = ttk.LabelFrame(pane, 
                                   text="核心功能", 
                                   padding=10,
                                   style="Large.TLabelframe")
-    features_frame.pack(fill='x', padx=5, pady=5)
+    features_frame.pack(fill='x', padx=10, pady=5, side='left', expand=True)
     features = """✓ 任务管理与提醒
 ✓ 智能学习进度跟踪
 ✓ 番茄钟专注计时
@@ -1491,9 +1555,77 @@ def open_about():
              text=features,
              font=("Microsoft YaHei", 11),
              justify="left").pack(anchor='w')
+    pane.add(features_frame)
+    
+    tips_frame = ttk.LabelFrame(pane,
+                                  text="使用技巧 & 常见问题",
+                                  padding=10,
+                                  style="Large.TLabelframe")
+    tips_frame.pack(fill='x', padx=10, pady=5, side='right', expand=True)
+    tips = """【高级技巧】
+· 在任务列表中双击任务可快速进入修改页面。
+· 在任务列表中右键任务可唤出右键菜单。
+· 在添加/修改任务页面，选中输入框，可按 Enter 快速提交。
+· 【AI智答】输入框可使用 Enter 快速发送，Ctrl/Shift + Enter 换行，且支持撤销/恢复操作。
+· 可同时开启多个【番茄钟】计时。
+· 主页可在右上角选择是否置顶。
+· 【番茄钟】计时窗口可在左下角选择是否置顶。
+
+
+【常见问题 Q&A】
+Q：为什么我的“AI智答”发送问题后会有错误弹窗？
+A：这是因为服务商出现了问题，有时候是因为网络繁忙。推荐在“AI智答”的设置中按照教程配置自己的API。
+
+Q：为什么有时候下载更新时会出现错误？
+A：若不是手动关闭窗口的话，就是服务端的问题。由于本更新服务使用GitHub，因此可能会出现网络问题。您也可以尝试在【关于】—【GitHub 项目页】手动下载更新包，然后手动安装。
+
+Q：为什么我的“AI智答”发送问题后会有错误弹窗？
+A：这是因为服务商出现了问题，有时候是因为网络繁忙。推荐在【AI智答】—【设置】中按照教程配置私有API，更加稳定。
+
+Q：为什么“统计报告”显示不全？
+A：这不是程序问题，是因为您当前没有其他数据可显示。
+
+Q：为什么我的“统计报告”有些数据一直是0？
+A：可能是您的数据库出现了问题。可在首页点击“设置”，并在“高级操作”中点击“删除所有数据”以重置数据库。
+
+Q：为什么有的任务剩余天数是负数？
+A：因为您那个任务过期了。
+
+Q：为什么有时候专注后没有弹出任务完成的提示窗口？
+A：因为您选择的任务已经完成了。"""
+    # 滚动条容器
+    scroll_container = ttk.Frame(tips_frame)
+    scroll_container.pack(fill='both', expand=True)
+    
+    # 垂直滚动条
+    scrollbar = ttk.Scrollbar(scroll_container)
+    scrollbar.pack(side='right', fill='y')
+    
+    # 文本框配置
+    tips_text = tk.Text(
+        scroll_container,
+        wrap=tk.WORD,
+        yscrollcommand=scrollbar.set,
+        font=("Microsoft YaHei", 11),
+        padx=10,
+        pady=10,
+        height=9
+    )
+    tips_text.pack(fill='both', expand=True)
+    scrollbar.config(command=tips_text.yview)
+
+    # 插入带格式的内容
+    tips_text.insert(tk.END, tips)  # 优化问题间距
+    tips_text.configure(state="disabled")  # 设为只读
+
+    pane.add(tips_frame)
+
+    # ========== 信息区 ==========
+    info_frame = ttk.Frame(content_frame)
+    info_frame.pack(fill='x', expand=True, padx=20, pady=0)
 
     # 开发者信息
-    dev_card = ttk.LabelFrame(pane, 
+    dev_card = ttk.LabelFrame(info_frame, 
                             text="开发者信息", 
                             padding=15,
                             style="Large.TLabelframe")
@@ -1504,7 +1636,7 @@ def open_about():
              justify="left").pack(anchor='w')
 
     # ========== 底部信息区 ==========
-    statement_frame = ttk.LabelFrame(pane, 
+    statement_frame = ttk.LabelFrame(info_frame, 
                             text="声明", 
                             padding=15,
                             style="Large.TLabelframe")
@@ -1570,7 +1702,7 @@ def open_about():
 def open_settings():
     setting_window = tk.Toplevel(root)
     setting_window.title("设置")
-    setting_window.geometry("500x400")
+    setting_window.geometry("500x600")
     setting_window.resizable(False, False)
     
     # ========== 主题设置 ==========
@@ -1671,7 +1803,31 @@ def open_settings():
     ).grid(row=0, column=2, padx=5, pady=5)
     Tooltip(autostart_frame.winfo_children()[1], "取消开机自启动")
     
-    danger_frame = ttk.LabelFrame(setting_window, text="高级操作", padding=10, style="Large.TLabelframe")
+    # ========== 通知管理设置 ==========
+    notify_frame = ttk.LabelFrame(setting_window, text="通知管理", padding=15, style="Large.TLabelframe")
+    notify_frame.pack(pady=10, fill='x', padx=10)  # 放在显示设置之前
+
+    # 获取当前通知设置
+    c.execute("SELECT enable_notifications, check_updates FROM notice_settings")
+    result = c.fetchone()
+    notify_enabled, check_update = result if result else (1, 1)
+
+    global notify_var, update_var
+    notify_var = tk.IntVar(value=notify_enabled)
+    update_var = tk.IntVar(value=check_update)
+
+    # 通知开关
+    ttk.Checkbutton(notify_frame,
+                   text="开启系统通知",
+                   variable=notify_var).pack(anchor="w")
+
+    # 更新检查开关
+    ttk.Checkbutton(notify_frame,
+                   text="启动时自动检查更新",
+                   variable=update_var).pack(anchor="w")
+
+
+    danger_frame = ttk.LabelFrame(setting_window, text="高级选项", padding=10, style="Large.TLabelframe")
     danger_frame.pack(pady=10, fill='x', padx=10)
     
     def delete_all_data():
@@ -1702,7 +1858,8 @@ def open_settings():
             # 重置默认设置
             c.execute("INSERT INTO theme_settings VALUES (1, '跟随系统')")
             c.execute("INSERT INTO task_counter (total_tasks) VALUES (0)")
-            c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', '硅基流动', 'window')")
+            c.execute("INSERT INTO notice_settings (enable_notifications, check_updates) VALUES (1, 1)")
+            c.execute("INSERT INTO ai_settings (api_key, default_model, provider, display_mode) VALUES ('', 'deepseek-chat', 'Deepseek', 'window')")
             conn.commit()
             
             # 更新界面
@@ -1746,6 +1903,9 @@ def open_settings():
 
     def save_settings():
         set_theme(theme_var.get())
+        c.execute("UPDATE notice_settings SET enable_notifications=?, check_updates=?",
+            (notify_var.get(), update_var.get()))
+        conn.commit()
         setting_window.destroy()
 
     ttk.Button(btn_frame, text="💾 保存", command=save_settings, width=12).grid(row=0, column=0, padx=5)
@@ -1755,10 +1915,10 @@ def open_settings():
     setting_window.grab_set()
     
 # ============== AI智答界面 ==============
-def open_ai_assistant():
-    ai_window = tk.Toplevel(root)
+def open_ai_assistant(parent):
+    ai_window = tk.Toplevel(parent)
     ai_window.title("AI智答")
-    ai_window.geometry("1000x700")
+    ai_window.geometry("1100x800")
     
     # 获取当前主题颜色
     text_bg = judge_theme(1)
@@ -1768,40 +1928,96 @@ def open_ai_assistant():
     style = ttk.Style()
     style.configure("AIT.TFrame", background=text_bg)
     style.configure("Model.TButton", font=("Microsoft YaHei", 10), padding=5, width=18)
+    style.configure("TFrame", bordercolor="#ced4da", lightcolor="#e9ecef", darkcolor="#dee2e6")
     
     main_frame = ttk.Frame(ai_window, padding=10)
     main_frame.pack(fill="both", expand=True)
     
     # 响应显示区域
-    response_frame = ttk.Frame(main_frame)
-    response_frame.pack(fill="both", expand=True, pady=5)
-    
-    response_scroll = tk.Scrollbar(response_frame)
+    response_frame = ttk.LabelFrame(main_frame, 
+                                  text="AI 回复",
+                                  padding=5,
+                                  style="Large.TLabelframe")
+    response_frame.pack(fill="both", expand=True, pady=10)
+
+    # 使用现代滚动条和边框
+    response_container = ttk.Frame(response_frame, borderwidth=1, relief="solid")
+    response_container.pack(fill="both", expand=True, padx=5, pady=5)
+
+    # 配置滚动条
+    response_scroll = ttk.Scrollbar(response_container)
     response_scroll.pack(side="right", fill="y")
-    
-    # 使用 HTMLLabel 替代原有的 Text 组件
-    html_label = HTMLLabel(response_frame, background=text_bg)
-    html_label.pack(fill="both", expand=True)
+
+    # 现代HTML显示区域
+    html_label = HTMLLabel(
+        response_container,
+        background=text_bg,
+        html='<div style="padding: 12px"></div>',  # 添加初始内边距
+        borderwidth=0,
+        highlightthickness=0
+    )
+    html_label.pack(fill="both", expand=True, padx=2)
     response_scroll.config(command=html_label.yview)
+
+    # 添加阴影效果（需要先在样式配置中添加）
+    style.configure("Response.TFrame", 
+                   bordercolor="#e9ecef",
+                   lightcolor="#f8f9fa",
+                   darkcolor="#dee2e6")
 
     # 输入区域
     input_frame = ttk.Frame(main_frame)
     input_frame.pack(fill="x", pady=10)
-    
-    input_scroll = tk.Scrollbar(input_frame)
+
+    # 使用ttk风格滚动条
+    input_scroll = ttk.Scrollbar(input_frame)
     input_scroll.pack(side="right", fill="y")
-    
+
+    # 使用ttk风格输入框（需要配合Frame模拟现代输入框）
+    input_container = ttk.Frame(input_frame, borderwidth=1, relief="solid")
+    input_container.pack(fill="x", expand=True)
+
     input_text = tk.Text(
-        input_frame, 
-        height=6,
+        input_container, 
+        height=6,  # 增加高度
         wrap="word",
         font=("Microsoft YaHei", 12),
         yscrollcommand=input_scroll.set,
         bg=text_bg,
         fg=text_fg,
-        insertbackground=text_fg
+        insertbackground=text_fg,
+        padx=8,  # 增加内边距
+        pady=8,
+        relief="flat",  # 去除默认边框
+        highlightthickness=0,  # 隐藏高亮边框
+        undo=True,  # 启用撤销功能
+        autoseparators=True,  # 自动插入撤销分隔符
+        maxundo=-1  # 无限撤销步骤
     )
-    input_text.pack(fill="x", expand=True)
+    input_text.pack(fill="both", expand=True)
+
+    # 键盘事件绑定
+    def handle_keypress(event):
+        # 撤销/恢复操作
+        if event.state & 0x0004:  # Ctrl 键
+            if event.keysym == 'z':
+                input_text.edit_undo()
+                return "break"
+            elif event.keysym == 'y':
+                input_text.edit_redo()
+                return "break"
+
+        # Enter发送，Ctrl/Shift+Enter换行
+        if event.keysym == 'Return' and not (event.state & 0x0005):  # 0x0004(Ctrl) | 0x0001(Shift)
+            send_message()
+            return "break"
+        elif event.keysym == 'Return' and (event.state & 0x0005):
+            input_text.insert(tk.INSERT, '\n')
+            return "break"
+    
+    input_text.bind("<KeyPress>", handle_keypress)
+
+    # 配置滚动条命令
     input_scroll.config(command=input_text.yview)
     
     # 底部控制栏
@@ -1813,9 +2029,9 @@ def open_ai_assistant():
     
     def toggle_model():
         current = model_var.get()
-        new_model = "deepseek-r1" if current == "deepseek-chat" else "deepseek-chat"
+        new_model = "deepseek-reasoner" if current == "deepseek-chat" else "deepseek-chat"
         model_var.set(new_model)
-        btn_text = "✅ 深度思考已开启" if new_model == "deepseek-r1" else "❌ 深度思考已关闭"
+        btn_text = "✅ 深度思考已开启" if new_model == "deepseek-reasoner" else "❌ 深度思考已关闭"
         model_btn.config(text=btn_text)  # 保持按钮文本长度一致
 
     model_btn = ttk.Button(
@@ -1836,21 +2052,74 @@ def open_ai_assistant():
     ).pack(side="left", padx=5)
 
     ttk.Label(control_frame, 
-             text="""本服务由Deepseek提供支持 · 不支持连续对话 · 本应用不对回答结果负责
+             text="""（Enter 发送，Ctrl/Shift+Enter 换行）
+本服务由Deepseek提供支持 · 不支持连续对话 · 本应用不对回答结果负责
 默认使用共享API · 由作者自费 · 可在【设置】更改
 有大量使用需求的用户请配置私有API，谢谢理解！""",
              font=("Microsoft YaHei", 9),
              foreground="#666666").pack(side="left", padx=5)
     
+    # 新增附件相关组件
+    attachments = {}  # 存储附件 {文件名: 内容}
+    
+    def add_attachments():
+        nonlocal attachments
+        if len(attachments) >= 5:
+            messagebox.showwarning("提示", "最多添加5个附件", parent=ai_window)
+            return
+            
+        files = filedialog.askopenfilenames(
+            parent=ai_window,
+            title="选择附件",
+            filetypes=[
+                ("文本文件", "*.txt*;.docx;*.doc;*.md;*.py;*.js;*.html;*.css"),
+            ]
+        )
+        
+        for file in files:
+            if len(attachments) >=5: break
+            try:
+                # 处理Word文档
+                if file.lower().endswith(('.doc', '.docx')):
+                    doc = Document(file)
+                    content = '\n'.join([para.text for para in doc.paragraphs])
+                    attachments[os.path.basename(file)] = content
+                    
+                # 处理其他文本文件    
+                else:
+                    with open(file, 'r', encoding='utf-8', errors='ignore') as f:
+                        attachments[os.path.basename(file)] = f.read()
+                        
+            except Exception as e:
+                messagebox.showerror("错误", f"读取文件失败：{str(e)}", parent=ai_window)
+        
+        # 更新附件显示（优化长文件名显示）
+        file_names = []
+        for name in attachments.keys():
+            if len(name) > 100:
+                shortened = f"{name[:10]}...{name[-7:]}"
+                file_names.append(shortened)
+            else:
+                file_names.append(name)
+        attachments_label.config(text=f"附件：{', '.join(file_names)}")
+
     def send_message():
         question = input_text.get("1.0", "end").strip()
         global users_question
+
+        # 拼接附件内容（优化格式）
+        attachments_content = ""
+        if attachments:
+            attachments_content = "\n\n*（注意！以下是用户上传的附件，上文提到的文件也许在这里，请综合所有内容回答）"
+            for name, content in attachments.items():
+                attachments_content += f"\n\n【文件名：{name}】\n{content}"
         users_question = question
+
         c.execute("SELECT provider, api_key FROM ai_settings")
         provider, api_key = c.fetchone()
         
-        if not question:
-            messagebox.showwarning("提示", "请输入问题内容", parent=ai_window)
+        if not question and not attachments:
+            messagebox.showwarning("提示", "问题和附件不能同时为空", parent=ai_window)
             return
             
         # 显示提示
@@ -1862,27 +2131,34 @@ def open_ai_assistant():
         if provider == "Deepseek":
             try:
                 client = OpenAI(
-                    api_key=api_key, #  if api_key else "sk-6fa677012558401e88b54cde791f9822",  # 替换为默认API
+                    api_key=api_key if api_key else "sk-6fa677012558401e88b54cde791f9822",  # 替换为默认API
                     base_url="https://api.deepseek.com"
                 )
                 
                 response = client.chat.completions.create(
                     model=model_var.get(),
-                    messages=[{"role": "user", "content": question}],
+                    messages=[{"role": "user", "content": question + attachments_content}],
                     stream=False
                 )
                 
                 c.execute("SELECT display_mode FROM ai_settings")
                 display_mode = c.fetchone()[0] or "window"
 
+                completion_tokens = response.usage.completion_tokens
+                prompt_tokens = response.usage.prompt_tokens
+                total_tokens = response.usage.total_tokens
                 # 生成Markdown内容
                 markdown = mistune.create_markdown(plugins=['strikethrough', 'footnotes', 'table', 'url', 'task_lists', 'def_list', 'abbr', 'math'])
-                html_content = markdown(response.choices[0].message.content)
-                
+                thinking_text = "<p>❌深度思考未开启，不进行深度思考</p>\n"
+                if model_var.get() == "deepseek-reasoner":
+                    thinking_text = f"<p>✅深度思考已完成</p><blockquote>{markdown(response.choices[0].message.reasoning_content)}</blockquote>\n"
+                html_content = markdown(f"{response.choices[0].message.content}\n***\nToken用量统计：用户提问：{prompt_tokens} Tokens，AI回答：{completion_tokens} Tokens，共计：{total_tokens} Tokens")
+                print(thinking_text + html_content)
+
                 # 根据模式处理显示
                 if display_mode == "window":
                     # 原有窗口显示逻辑
-                    html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;">{html_content}</div>'
+                    html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;">{thinking_text + "<p>（以上内容为AI思考过程，下文为正式回答）</p>" + html_content + "\n\n（AI回答乱码/格式不正确？在AI智答【设置】中将【AI回答显示方式】改为【在浏览器显示】即可！）"}</div>'
                     html_label.set_html(html_text)
                 else:
                     global current_response_html
@@ -1911,7 +2187,7 @@ def open_ai_assistant():
                     </head>
                     <body>
                         <div class="markdown-body">
-                        {html_content}
+                        {thinking_text + html_content}
                         </div>
                     </body>
                     </html>
@@ -1928,6 +2204,8 @@ def open_ai_assistant():
                 messagebox.showerror("错误", f"请求失败：{str(e)}", parent=ai_window)
             finally:
                 input_text.delete("1.0", "end")
+                attachments.clear()
+                attachments_label.config(text="")
         elif provider == "硅基流动":
             api_key=api_key if api_key else "sk-dgxkvpdrkaxvnzhflxeiagetenlhvxsydybqncqwqurejvvf"  # 替换为默认API
             url = "https://api.siliconflow.cn/v1/chat/completions"
@@ -1938,22 +2216,30 @@ def open_ai_assistant():
             payload = {
                 "model": "deepseek-ai/DeepSeek-V3" if model_var.get() == "deepseek-chat" 
                         else "deepseek-ai/DeepSeek-R1",
-                "messages": [{"role": "user", "content": question}],
+                "messages": [{"role": "user", "content": question + attachments_content}],
             }
             try:
                 response = requests.post(url, headers=headers, json=payload)
                 if response.status_code == 200:
                     c.execute("SELECT display_mode FROM ai_settings")
+
                     display_mode = c.fetchone()[0] or "window"
 
+                    completion_tokens = response.json()['usage']['completion_tokens']
+                    prompt_tokens = response.json()['usage']['prompt_tokens']
+                    total_tokens = response.json()['usage']['total_tokens']
                     # 生成Markdown内容
                     markdown = mistune.create_markdown(plugins=['strikethrough', 'footnotes', 'table', 'url', 'task_lists', 'def_list', 'abbr', 'math'])
-                    html_content = markdown(response.json()['choices'][0]['message']['content'])
-                    
+                    thinking_text = "<p>❌深度思考未开启，不进行深度思考</p>\n"
+                    if model_var.get() == "deepseek-reasoner":
+                        thinking_text = f"<p>✅深度思考已完成</p><blockquote>{markdown(response.json()['choices'][0]['message']['reasoning_content'])}</blockquote>\n"
+                    html_content = markdown(f"{response.json()['choices'][0]['message']['content']}\n***\nToken用量统计：用户提问：{prompt_tokens} Tokens，AI回答：{completion_tokens} Tokens，共计：{total_tokens} Tokens")
+                    print(thinking_text + html_content)
+
                     # 根据模式处理显示
                     if display_mode == "window":
                         # 原有窗口显示逻辑
-                        html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;">{html_content}</div>'
+                        html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;">{thinking_text + "<p>（以上内容为AI思考过程，下文为正式回答）</p>" + html_content + "\n\n（AI回答乱码/格式不正确？在AI智答【设置】中将【AI回答显示方式】改为【在浏览器显示】即可！）"}</div>'
                         html_label.set_html(html_text)
                     else:
                         current_response_html = f"""
@@ -1981,7 +2267,7 @@ def open_ai_assistant():
                     </head>
                     <body>
                         <div class="markdown-body">
-                        {html_content}
+                        {thinking_text + html_content}
                         </div>
                     </body>
                     </html>
@@ -1997,6 +2283,10 @@ def open_ai_assistant():
                     messagebox.showerror("错误", f"请求失败：{response.text}", parent=ai_window)
             except Exception as e:
                 messagebox.showerror("错误", f"请求异常：{str(e)}", parent=ai_window)
+            finally:
+                input_text.delete("1.0", "end")
+                attachments.clear()
+                attachments_label.config(text="")
 
     ttk.Button(
         control_frame,
@@ -2004,8 +2294,29 @@ def open_ai_assistant():
         command=send_message,
         style="Accent.TButton"
     ).pack(side="right", padx=5)
+
+    # 新增清空附件按钮
+    ttk.Button(
+        control_frame,
+        text="清空附件",
+        command=lambda: [attachments.clear(), attachments_label.config(text="")],
+        style="Model.TButton",
+        width=8
+    ).pack(side="right", padx=2)
+
+    # 附件标签和按钮（新增）
+    attachments_label = ttk.Label(main_frame, text="", foreground="#666")
+    attachments_label.pack(side="right", padx=2)
+    ttk.Button(
+        control_frame,
+        text="📎 添加附件",
+        command=add_attachments,
+        style="Model.TButton",
+        width=10
+    ).pack(side="right", padx=5)
+
     
-    ai_window.transient(root)
+    ai_window.transient(parent)
     ai_window.grab_set()
 
 # ============== AI设置窗口 ==============
@@ -2046,10 +2357,10 @@ def open_ai_settings(parent):
     ttk.Label(api_frame, text="API Key:").pack(anchor="w")
     api_entry = ttk.Entry(api_frame)
     api_entry.insert(0, api_key)
-    api_entry.pack(fill="x", pady=5, padx=5)
+    api_entry.pack(fill="x", pady=5, padx=0)
     
     ttk.Label(api_frame, 
-             text="因近期Deepseek官方API关闭充值入口，【AI智答】暂停提供Deepseek渠道的共享API，单独配置该渠道私有API或使用硅基流动共享API不受影响\n留空将使用作者自费的共享API\n推荐配置私有API，谢谢理解！",
+             text="留空将使用作者自费的共享API\n推荐配置私有API，谢谢理解！",# 因近期Deepseek官方API关闭充值入口，【AI智答】暂停提供Deepseek渠道的共享API，单独配置该渠道私有API或使用硅基流动共享API不受影响\n
              font=("Microsoft YaHei", 9),
              foreground="#666666").pack(anchor="w")
     
@@ -2155,6 +2466,27 @@ task_list.heading("剩余天数", text="剩余天数")
 task_list.column("状态", width=50, anchor='center')
 task_list.heading("状态", text="状态")
 
+# 绑定双击事件
+def on_double_click(event):
+    if task_list.selection():
+        edit_task()
+task_list.bind("<Double-1>", on_double_click)
+
+# 创建右键菜单
+context_menu = tk.Menu(root, tearoff=0)
+context_menu.add_command(label="修改", command=edit_task)
+context_menu.add_command(label="删除", command=delete_task)
+context_menu.add_command(label="复制并粘贴", command=copy_and_paste_task)
+context_menu.add_command(label="番茄钟", command=pomodoro_set_tasks)
+
+def on_right_click(event):
+    item = task_list.identify_row(event.y)
+    if item:
+        task_list.selection_set(item)
+        context_menu.post(event.x_root, event.y_root)
+        
+task_list.bind("<Button-3>", on_right_click)
+
 # 操作按钮组
 edit_button = ttk.Frame(task_frame)
 edit_button.grid(row=1, column=0, pady=10, sticky="nsew")
@@ -2191,6 +2523,7 @@ ttk.Label(date_frame, text="截止日期:").grid(row=0, column=0, sticky="w")
 date_entry = ttk.Entry(date_frame, width=12, font=('Microsoft YaHei', 9))
 date_entry.insert(0, datetime.now().strftime("%Y/%m/%d"))  # 默认当前日期
 date_entry.grid(row=0, column=1, padx=5)
+date_entry.bind("<Return>", lambda e: add_task())
 
 def set_add_date():
     def on_date_select():
@@ -2201,6 +2534,7 @@ def set_add_date():
     
     top = tk.Toplevel(root)
     top.title("选择日期")
+    top.resizable(False, False)
     cal = Calendar(top, 
                  selectmode='day',
                  year=datetime.now().year,
@@ -2217,7 +2551,7 @@ ttk.Button(date_frame, text="➕ 确认添加", command=add_task, width=12).grid
 func_btn_frame = ttk.Frame(bottom_frame)
 func_btn_frame.pack(side="right", padx=10)
 
-ttk.Button(func_btn_frame, text="🤖 AI智答", command=open_ai_assistant, width=12).grid(row=0, column=0, pady=2)
+ttk.Button(func_btn_frame, text="🤖 AI智答", command=lambda:open_ai_assistant(root), width=12).grid(row=0, column=0, pady=2)
 Tooltip(func_btn_frame.winfo_children()[0], "使用AI智能回答问题")
 ttk.Button(func_btn_frame, text="📈 统计报告", command=show_progress_report, width=12).grid(row=1, column=0, pady=2)
 Tooltip(func_btn_frame.winfo_children()[1], "查看学习数据可视化报告")
@@ -2256,7 +2590,7 @@ def on_showing(icon, item):
 def open_ai_assistant_window(icon, item):
     icon.stop()
     root.deiconify()
-    open_ai_assistant()
+    open_ai_assistant(root)
     sent_notice("任务栏托盘已隐藏", "关闭所有窗口将再次出现")
     return 0
 
