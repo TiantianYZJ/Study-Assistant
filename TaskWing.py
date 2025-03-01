@@ -6,7 +6,7 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.0.8"
+Version = "V1.0.9"
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -38,6 +38,7 @@ CHANGELOG = [
     "V1.0.6-2024.02.22 1、因Deepseek关闭充值入口，【AI智答】暂停提供该渠道共享API，该渠道私有API不受影响；2、优化【专注】；3、优化【设置】",
     "V1.0.7-2024.02.22 1、优化按钮名称；2、主页面字体调整，更显眼；3、【统计报告】优化数据统计逻辑；4、接入日期选择器控件，选择日期更直观",
     "V1.0.8-2024.02.23 1、主题模式新增【跟随系统】；2、浏览器显示回答支持复杂数学公式；3、【专注】新增音量调节；4、【统计报告】优化防溢出",
+    "V1.0.9-2024.02.28 1、新增更新检测，从此更新更方便；2、重新设计关于页面；3、取消悬浮提示框的渐显渐隐效果，杜绝了闪烁BUG",
 ]
 
 import random
@@ -150,8 +151,8 @@ def sent_notice(t,m):
     toaster.show_toast(
         title=t,
         msg=m,
-        duration=3,
         icon_path=icon_path,
+        duration=1,
         threaded=True
     )
 
@@ -395,31 +396,30 @@ class Tooltip:
         self.widget = widget
         self.text = text
         self.tipwindow = None
-        self.alpha = 0.0  # 透明度控制
-        self.after_id = None  # 延迟显示定时器
-        self.fade_in_id = None  # 渐显动画ID
+        self.after_id = None  # 仅保留延迟定时器
         self.widget.bind("<Enter>", self.schedule_show)
         self.widget.bind("<Leave>", self.schedule_hide)
 
     def schedule_show(self, event=None):
         """安排延迟显示"""
         self.cancel_pending()
-        self.after_id = self.widget.after(500, self.showtip)  # 0.5秒后显示
+        self.after_id = self.widget.after(500, self.showtip)
 
     def schedule_hide(self, event=None):
-        """安排渐隐效果"""
+        """立即隐藏"""
         self.cancel_pending()
         if self.tipwindow:
-            self.fade_out()
+            self.tipwindow.destroy()
+            self.tipwindow = None
 
     def cancel_pending(self):
-        """取消所有待执行操作"""
+        """取消待执行操作"""
         if self.after_id:
             self.widget.after_cancel(self.after_id)
             self.after_id = None
 
     def showtip(self):
-        """创建提示窗口并启动渐显动画"""
+        """直接显示提示窗口"""
         if self.tipwindow or not self.text:
             return
         
@@ -427,11 +427,10 @@ class Tooltip:
         x = self.widget.winfo_rootx() + 25
         y = self.widget.winfo_rooty() + 25
         
-        # 创建半透明窗口
+        # 创建普通窗口
         self.tipwindow = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
-        tw.attributes("-alpha", 0.0)  # 初始完全透明
         
         # 样式配置
         bg_color = judge_theme(1)
@@ -441,27 +440,6 @@ class Tooltip:
                         relief='solid', borderwidth=1,
                         font=("Microsoft YaHei", 10))
         label.pack()
-        
-        # 启动渐显动画
-        self.fade_in()
-
-    def fade_in(self):
-        """渐显效果(0.0 -> 1.0)"""
-        self.alpha = min(self.alpha + 0.25, 1.0)
-        self.tipwindow.attributes("-alpha", self.alpha)
-        if self.alpha < 1.0:
-            self.fade_in_id = self.tipwindow.after(20, self.fade_in)
-
-    def fade_out(self):
-        """渐隐效果(1.0 -> 0.0)"""
-        self.alpha = max(self.alpha - 0.25, 0.0)
-        self.tipwindow.attributes("-alpha", self.alpha)
-        if self.alpha > 0.0:
-            self.tipwindow.after(20, self.fade_out)
-        else:
-            self.tipwindow.destroy()
-            self.tipwindow = None
-            self.alpha = 0.0
 
     def __del__(self):
         """对象销毁时清理资源"""
@@ -491,7 +469,6 @@ def update_time():
     timenow = judge_time()
     stime = strftime("%Y/%m/%d %H:%M:%S")
     def adjust_font_size(event):
-        width = event.width
         height = event.height
         if height / 2 > 55:
             height = 55 * 2
@@ -508,6 +485,89 @@ def update_time():
     else:
         root.time_label.config(text=f"{timenow}好，现在是{stime}")
     root.after(1000, update_time)
+
+# 版本检测
+def version_judge(parent):
+    github_api = 'https://api.github.com/repos/tiantianyzj/taskwing/releases/latest'
+
+    res = requests.get(github_api).json()
+    get_version = res['name']# 最新版本
+    get_log = res['body']# 更新日志
+    if(Version != get_version):
+        if parent == root:
+            sent_notice("发现新版本", f"{Version} → {get_version}")
+        if messagebox.askokcancel("发现新版本", f"有新版本可用：{Version} → {get_version}\n更新内容：\n{get_log}\n\n单击【确定】立即下载", parent=parent):
+            sent_notice("下载已开始", "您可以继续正常使用学翼")
+            get_down_url = res['assets'][0]['browser_download_url']# 下载链接
+            # 创建进度窗口
+            progress_window = tk.Toplevel(parent)
+            progress_window.title("下载进度")
+            progress_window.resizable(False, False)
+            progress_bar = ttk.Progressbar(progress_window, length=300, mode='determinate')
+            progress_bar.pack(padx=20, pady=20)
+            progress_label = ttk.Label(progress_window, text="0%")
+            progress_label.pack()
+
+            def download_with_progress():
+                try:
+                    # 新增带进度条的下载代码
+                    r = get_down_url
+                    response = requests.get(r, stream=True)
+                    file_name = r.split('/')[-1]  # 从URL提取文件名
+                    total_size = int(response.headers.get('content-length', 0))
+                    
+                    # 添加时间计算相关变量
+                    start_time = time()
+                    last_update = 0  # 用于限制更新频率
+                    
+                    # 设置下载路径为系统下载文件夹
+                    download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
+                    os.makedirs(download_dir, exist_ok=True)  # 确保文件夹存在
+
+                    file_name = r.split('/')[-1]
+                    save_path = os.path.join(download_dir, file_name)  # 完整保存路径
+
+                    with open(save_path, 'wb') as f:  # 修改保存路径
+                        downloaded = 0
+                        for chunk in response.iter_content(chunk_size=1024*128):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                progress = (downloaded / total_size) * 100
+
+                                # 新增剩余时间计算
+                                current_time = time()
+                                elapsed = current_time - start_time
+                                speed = downloaded / elapsed  # 字节/秒
+                                remaining = (total_size - downloaded) / speed if speed > 0 else 0
+                                
+                                # 每0.2秒更新一次时间显示
+                                if current_time - last_update >= 0.2 or progress >= 99.9:
+                                    # 格式化时间显示
+                                    remaining_str = f"{remaining//60:.0f}分{remaining%60:.0f}秒" if remaining > 60 else f"{remaining:.1f}秒"
+                                    progress_label.config(text=f"{progress:.1f}% (剩余 {remaining_str})")
+                                    last_update = current_time
+
+                                # 更新进度条
+                                progress_bar['value'] = progress
+                                # progress_label.config(text=f"{progress:.1f}%")
+                                root.update_idletasks()
+                                print(f"\r下载进度: {progress:.1f}%", end='')
+                    progress_window.destroy()
+                    sent_notice("下载完成", "请返回学翼进行下一步操作")
+                    if messagebox.showinfo("下载完成", "下载完成！\n单击【确定】以进行安装，本程序将自动退出", parent=parent):
+                        os.startfile(save_path)  # 打开下载的文件
+                        root.destroy()  # 退出程序
+                except Exception as e:
+                    if str(e) == """invalid command name ".!toplevel.!label""":
+                        messagebox.showerror("下载错误", "下载被取消", parent=parent)
+                    else:
+                        messagebox.showerror("下载错误", f"下载失败，可能是服务器繁忙\n错误信息： {str(e)}", parent=parent)
+                    progress_window.destroy()
+                
+            threading.Thread(target=download_with_progress, daemon=True).start()
+    elif(Version == get_version and parent != root):      
+        messagebox.showinfo("检查完成", f"当前已是最新版本\n\n当前版本：{Version}\n此版本更新内容：\n{get_log}", parent=parent)
 
 # 显示托盘图标
 def create_tray_icon():
@@ -1376,92 +1436,107 @@ def show_progress_report():
 def open_about():
     about_window = tk.Toplevel(root)
     about_window.title("关于")
-    about_window.geometry("1000x860")
+    about_window.geometry("1000x700")
     about_window.resizable(False, False)
     
-    # 使用Frame容器
-    content_frame = ttk.Frame(about_window)
-    content_frame.pack(pady=20, padx=30, fill='both', expand=True)
+    # ========== 主容器 ==========
+    main_frame = ttk.Frame(about_window)
+    main_frame.pack(fill='both', expand=True, padx=20, pady=20)
 
-    # 标题部分
-    ttk.Label(content_frame, 
+    # ========== 标题区 ==========
+    header_frame = ttk.Frame(main_frame)
+    header_frame.pack(fill='x', pady=10)
+    
+    # 应用标题居中
+    ttk.Label(header_frame, 
              text="学翼 - TaskWing", 
-             font=("Microsoft YaHei", 18, "bold"),
-             foreground="#4fb9fe",
-             justify="center").pack(pady=10)
+             font=("Microsoft YaHei", 24, "bold"),
+             foreground="#4fb9fe").pack(side='left', padx=25)
+    
+    # 当前版本移到左侧
+    ttk.Label(header_frame, 
+             text=Version,
+             font=("Microsoft YaHei", 12),
+             foreground="#666").pack(side='left', padx=10)
+    
+    # 检查更新按钮在右侧
+    ttk.Button(header_frame,
+              text="🔄 检查更新",
+              command=lambda:version_judge(about_window),
+              style='Accent.TButton').pack(side='right', padx=20)
 
-    # 版本信息
-    ttk.Label(content_frame,
-             text=Version, 
-             font=("Microsoft YaHei", 10),
-             foreground="#7f8c8d").pack(pady=5)
+    # ========== 核心内容区 ==========
+    content_frame = ttk.Frame(main_frame)
+    content_frame.pack(fill='both', expand=True)
 
-    # 分隔线
-    ttk.Separator(content_frame).pack(fill='x', pady=10)
+    # 左栏（版本信息 + 功能列表）
+    pane = ttk.Frame(content_frame)
+    pane.pack(fill='both', expand=True, padx=20)
 
     # 功能列表
-    features = """
-亮点功能：
-✓ 任务管理与提醒
+    features_frame = ttk.LabelFrame(pane, 
+                                  text="核心功能", 
+                                  padding=10,
+                                  style="Large.TLabelframe")
+    features_frame.pack(fill='x', padx=5, pady=5)
+    features = """✓ 任务管理与提醒
 ✓ 智能学习进度跟踪
 ✓ 番茄钟专注计时
 ✓ 数据可视化统计
-✓ 接入Deepseek-V3&R1模型，AI在线专业解答
+✓ AI在线专业解答
 ✓ 多主题界面适配
-✓ 响应式窗口布局
 ✓ 系统托盘常驻运行
-✓ 可设置开机自启动
-"""
-    ttk.Label(content_frame, 
+✓ 开机自启动设置"""
+    ttk.Label(features_frame, 
              text=features,
              font=("Microsoft YaHei", 11),
-             justify="left").pack(pady=5, anchor='w')
+             justify="left").pack(anchor='w')
 
-    # 开发信息
-    ttk.Label(content_frame,
-             text="开发者：TiantianYZJ\n"
-                  "Email：yzjtiantian@126.com\n",
+    # 开发者信息
+    dev_card = ttk.LabelFrame(pane, 
+                            text="开发者信息", 
+                            padding=15,
+                            style="Large.TLabelframe")
+    dev_card.pack(fill='x', padx=5, pady=5, side='left', expand=True)
+    ttk.Label(dev_card,
+             text="开发者：TiantianYZJ\nEmail：yzjtiantian@126.com",
              font=("Microsoft YaHei", 10),
-             justify="left",
-             foreground="#34495e").pack(pady=10, anchor='w')
+             justify="left").pack(anchor='w')
 
-    # 版权信息
-    ttk.Label(content_frame,
-             text="部分图标来源于阿里巴巴矢量图标库 · 如有侵权请联系删除",
-             font=("Microsoft YaHei", 9),
-             foreground="#95a5a6",
-             justify="center").pack(pady=10)
+    # ========== 底部信息区 ==========
+    statement_frame = ttk.LabelFrame(pane, 
+                            text="声明", 
+                            padding=15,
+                            style="Large.TLabelframe")
+    statement_frame.pack(fill='x', padx=5, pady=5, side='right', expand=True)
     
-    # 许可证信息
-    ttk.Label(content_frame,
-             text="本应用遵循 GNU General Public License v3.0 开源协议",
-             font=("Microsoft YaHei", 9),
-             foreground="#95a5a6",
-             justify="center").pack(pady=0)
+    # 开源协议
+    ttk.Label(statement_frame,
+             text="学翼 遵循 GNU General Public License v3.0 开源协议",
+             font=("Microsoft YaHei", 10),
+             justify="left").pack(anchor='w')
     
-    # 添加超链接提示
-    link_label = ttk.Label(content_frame,
-                           text="查看GitHub项目页",
-                           font=("Microsoft YaHei", 9, "underline"),
-                           foreground="#3498db",
-                           cursor="hand2")
-    link_label.pack(pady=3)
-    link_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/TiantianYZJ/TaskWing"))
-    
-    # ========== 新增更新日志部分 ==========
-    changelog_frame = ttk.LabelFrame(content_frame, text="更新日志", padding=10, style="Large.TLabelframe"
-                                     )
-    changelog_frame.pack(fill="both", expand=True, pady=10)
+    # 图标版权
+    ttk.Label(statement_frame,
+             text="部分图标来源于阿里巴巴矢量图标库，如有侵权请联系删除",
+             font=("Microsoft YaHei", 10),
+             justify="left").pack(anchor='w')
+
+    # ========== 更新日志区 ==========
+    changelog_frame = ttk.LabelFrame(main_frame, 
+                                   text="更新日志", 
+                                   padding=10,
+                                   style="Large.TLabelframe")
+    changelog_frame.pack(fill='both', expand=True, pady=5, padx=25)
     
     # 滚动条容器
     scroll_container = ttk.Frame(changelog_frame)
-    scroll_container.pack(fill="both", expand=True)
+    scroll_container.pack(fill='both', expand=True)
     
-    # 滚动条
+    # 滚动条和文本框
     scrollbar = ttk.Scrollbar(scroll_container)
-    scrollbar.pack(side="right", fill="y")
+    scrollbar.pack(side='right', fill='y')
     
-    # 文本框显示日志
     changelog_text = tk.Text(
         scroll_container,
         wrap="word",
@@ -1469,7 +1544,7 @@ def open_about():
         font=("Microsoft YaHei", 10),
         height=8
     )
-    changelog_text.pack(side="left", fill="both", expand=True)
+    changelog_text.pack(side='left', fill='both', expand=True)
     scrollbar.config(command=changelog_text.yview)
     
     # 插入日志内容
@@ -1477,11 +1552,19 @@ def open_about():
         changelog_text.insert("end", f"• {entry}\n")
     changelog_text.configure(state="disabled")
 
-    # 关闭按钮
-    ttk.Button(content_frame, 
-              text="确定", 
-              command=about_window.destroy,
-              style='Accent.TButton').pack(pady=15)
+    # ========== 操作按钮区 ==========
+    btn_frame = ttk.Frame(main_frame)
+    btn_frame.pack(pady=10)
+    
+    ttk.Button(btn_frame, 
+              text="⭐ GitHub 项目页",
+              command=lambda: webbrowser.open_new("https://github.com/TiantianYZJ/TaskWing")
+              ).pack(side='left', padx=10)
+    
+    ttk.Button(btn_frame,
+              text="关闭",
+              style='Accent.TButton',
+              command=about_window.destroy).pack(side='right', padx=10)
 
 # ============== 设置界面 ==============
 def open_settings():
@@ -2206,6 +2289,8 @@ update_time()
 
 # 更新剩余天数
 update_rest_days()
+
+version_judge(root)
 
 # 运行主循环
 root.mainloop()
