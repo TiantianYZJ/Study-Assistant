@@ -4,9 +4,9 @@
 
 > 一款专为Windows打造的智能化学习任务管理工具，集成AI问答、进度跟踪、数据可视化等功能
 
-**下载最新版本**：[学翼-V1.1.0 安装包](https://github.com/TiantianYZJ/TaskWing/releases/download/V1.1.0/TaskWing-V1.1.0_Setup.exe)  
+**下载最新版本**：[学翼-V1.1.1 安装包](https://github.com/TiantianYZJ/TaskWing/releases/download/V1.1.1/TaskWing-V1.1.1_Setup.exe)  
 
-*支持 Windows 10/11 系统 | 大小：约162.5MB | 更新时间：2025.03.02*
+*支持 Windows 10/11 系统 | 大小：约162.5MB | 更新时间：2025.03.08*
 
 ---
 

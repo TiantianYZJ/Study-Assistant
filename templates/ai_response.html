@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI智答 - 学习助手</title>
+    <title>AI智答 - 学翼</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/copy-tex.min.js"></script>
     <style>
         :root {
             --bg-color: {{ bg_color }};
@@ -398,9 +400,19 @@
                     {left: '$$', right: '$$', display: true},
                     {left: '$', right: '$', display: false},
                     {left: '\\(', right: '\\)', display: false},
-                    {left: '\\[', right: '\\]', display: true}
+                    {left: '\\[', right: '\\]', display: true},
+                    {left: '\\begin{equation}', right: '\\end{equation}', display: true}, // 新增方程环境
+                    {left: '\\begin{align}', right: '\\end{align}', display: true} // 新增对齐环境
                 ],
-                throwOnError: false
+                ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+                macros: {
+                    "\\RR": "\\mathbb{R}",
+                    "\\abs": ["\\left|#1\\right|", 1]
+                },
+                throwOnError: false,
+                strict: 'ignore', // 忽略无法解析的内容
+                trust: true, // 启用信任模式
+                fleqn: true // 左对齐公式
             });
             document.querySelectorAll('pre').forEach(pre => {
                 const wrapper = document.createElement('div');

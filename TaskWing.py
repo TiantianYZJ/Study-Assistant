@@ -6,7 +6,7 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.1.0"
+Version = "V1.1.1"
 CHANGELOG = [
     "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -40,6 +40,7 @@ CHANGELOG = [
     "V1.0.8-2024.02.23 1、主题模式新增【跟随系统】；2、浏览器显示回答支持复杂数学公式；3、【专注】新增音量调节；4、【统计报告】优化防溢出",
     "V1.0.9-2024.02.28 1、新增更新检测，从此更新更方便；2、重新设计关于页面；3、取消悬浮提示框的渐显渐隐效果，杜绝了闪烁BUG",
     "V1.1.0-2024.03.02 1、恢复默认API；2、任务列表支持双击和右键操作；3、优化【AI智答】、【关于】；4、添加【通知管理】；5、支持显示AI思考内容；6、【AI智答】支持添加附件",
+    "V1.1.1-2024.03.08 1、修复【AI智答】附件解析bug；2、检测更新时显示更新时间；3、浏览器端AI回答适配更多数学公式",
 ]
 
 import random
@@ -77,6 +78,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from docx import Document
+from win32com.client import Dispatch
 
 # 音频管理配置
 def get_current_volume():
@@ -244,6 +246,10 @@ c.execute("SELECT COUNT(*) FROM pomodoro_records")
 if c.fetchone()[0] == 0:
     c.execute("INSERT INTO pomodoro_records (total_sessions, total_minutes) VALUES (0, 0)")
 pomodoro_records = c.fetchall() 
+conn.commit()
+
+c.execute('''CREATE TABLE IF NOT EXISTS api_usage
+             (date TEXT PRIMARY KEY, count INTEGER)''')
 conn.commit()
 
 # 检查读取的数据
@@ -511,10 +517,11 @@ def version_judge(parent):
     res = requests.get(github_api).json()
     get_version = res['name']# 最新版本
     get_log = res['body']# 更新日志
+    get_time = res['created_at'][0:10]# 发布时间
     if(Version != get_version):
         if parent == root:
             sent_notice("发现新版本", f"{Version} → {get_version}")
-        if messagebox.askokcancel("发现新版本", f"有新版本可用：{Version} → {get_version}\n更新内容：\n{get_log}\n\n单击【确定】立即下载", parent=parent):
+        if messagebox.askokcancel("发现新版本", f"有新版本可用：{Version} → {get_version}\n发布时间：{get_time}\n\n更新内容：\n{get_log}\n\n单击【确定】立即下载", parent=parent):
             sent_notice("下载已开始", "您可以继续正常使用学翼")
             get_down_url = res['assets'][0]['browser_download_url']# 下载链接
             # 创建进度窗口
@@ -585,7 +592,7 @@ def version_judge(parent):
                 
             threading.Thread(target=download_with_progress, daemon=True).start()
     elif(Version == get_version and parent != root):      
-        messagebox.showinfo("检查完成", f"当前已是最新版本\n\n当前版本：{Version}\n此版本更新内容：\n{get_log}", parent=parent)
+        messagebox.showinfo("检查完成", f"当前已是最新版本\n当前版本：{Version}\n发布时间{get_time}\n\n此版本更新内容：\n{get_log}", parent=parent)
 
 # 显示托盘图标
 def create_tray_icon():
@@ -708,6 +715,9 @@ def edit_task():
         
         top = tk.Toplevel(edit_window)
         top.title("选择日期")
+        top.resizable(False, False)
+        top.transient(root)
+        top.grab_set()
         cal = Calendar(top, 
                       selectmode='day',
                       year=init_year,
@@ -719,6 +729,7 @@ def edit_task():
     
     # 添加日期选择按钮
     ttk.Button(info_frame, text="📅 选择", command=set_edit_date).grid(row=1, column=1, padx=120, pady=10)
+    Tooltip(info_frame.winfo_children()[4], "在日历中选择日期")
 
     # ========== 任务状态部分 ==========
     status_frame = ttk.LabelFrame(main_frame, text="任务状态", padding=10, style="Large.TLabelframe")
@@ -1577,7 +1588,7 @@ Q：为什么我的“AI智答”发送问题后会有错误弹窗？
 A：这是因为服务商出现了问题，有时候是因为网络繁忙。推荐在“AI智答”的设置中按照教程配置自己的API。
 
 Q：为什么有时候下载更新时会出现错误？
-A：若不是手动关闭窗口的话，就是服务端的问题。由于本更新服务使用GitHub，因此可能会出现网络问题。您也可以尝试在【关于】—【GitHub 项目页】手动下载更新包，然后手动安装。
+A：若不是手动关闭窗口的话，就是服务端的问题。由于本更新服务依赖GitHub，因此可能会出现网络问题。您也可以尝试在【关于】—【GitHub 项目页】手动下载更新包，然后手动安装。
 
 Q：为什么我的“AI智答”发送问题后会有错误弹窗？
 A：这是因为服务商出现了问题，有时候是因为网络繁忙。推荐在【AI智答】—【设置】中按照教程配置私有API，更加稳定。
@@ -1692,6 +1703,7 @@ A：因为您选择的任务已经完成了。"""
               text="⭐ GitHub 项目页",
               command=lambda: webbrowser.open_new("https://github.com/TiantianYZJ/TaskWing")
               ).pack(side='left', padx=10)
+    Tooltip(btn_frame.winfo_children()[0], "点击前往 GitHub 项目页（https://github.com/TiantianYZJ/TaskWing）")
     
     ttk.Button(btn_frame,
               text="关闭",
@@ -1702,7 +1714,7 @@ A：因为您选择的任务已经完成了。"""
 def open_settings():
     setting_window = tk.Toplevel(root)
     setting_window.title("设置")
-    setting_window.geometry("500x600")
+    setting_window.geometry("500x500")
     setting_window.resizable(False, False)
     
     # ========== 主题设置 ==========
@@ -2080,10 +2092,34 @@ def open_ai_assistant(parent):
             if len(attachments) >=5: break
             try:
                 # 处理Word文档
+                # 处理Word文档（同时支持.doc和.docx）
                 if file.lower().endswith(('.doc', '.docx')):
-                    doc = Document(file)
-                    content = '\n'.join([para.text for para in doc.paragraphs])
-                    attachments[os.path.basename(file)] = content
+                    try:
+                        # 新版.docx处理
+                        if file.lower().endswith('.docx'):
+                            doc = Document(file)
+                            content = '\n'.join([para.text for para in doc.paragraphs])
+                        # 旧版.doc处理
+                        else:
+                            
+                            word = Dispatch('Word.Application')
+                            word.visible = False  # 后台运行
+                            doc = word.Documents.Open(file)
+                            content = doc.Range().Text
+                            doc.Close()
+                            word.Quit()
+                        
+                        attachments[os.path.basename(file)] = content
+                        
+                    except Exception as e:
+                        messagebox.showerror("文件读取错误", 
+                            f"无法读取Word文档：{str(e)}\n"
+                            "请确认：\n"
+                            "1. 文件未被其他程序占用\n"
+                            "2. 已安装Microsoft Word\n"
+                            "3. 文件内容未被加密", 
+                            parent=ai_window)
+                        continue
                     
                 # 处理其他文本文件    
                 else:
@@ -2104,6 +2140,33 @@ def open_ai_assistant(parent):
         attachments_label.config(text=f"附件：{', '.join(file_names)}")
 
     def send_message():
+        c.execute("SELECT provider, api_key FROM ai_settings")
+        provider, api_key = c.fetchone()
+
+        # 新增次数检查逻辑
+        if not api_key:  # 使用共享API的情况
+            today = datetime.now().strftime("%Y-%m-%d")
+            
+            # 查询使用记录
+            c.execute("SELECT date, count FROM api_usage LIMIT 1")
+            record = c.fetchone()
+            
+            if record:
+                record_date, remaining = record
+                if record_date != today:  # 跨天重置
+                    c.execute("UPDATE api_usage SET date=?, count=4", (today,))
+                else:
+                    if remaining <= 0:
+                        messagebox.showwarning("次数已用尽", "今日免费次数已用尽，请配置私有API或明日再来", parent=ai_window)
+                        return
+                    c.execute("UPDATE api_usage SET count=count-1")
+                c.execute("SELECT date, count FROM api_usage LIMIT 1")
+            else:  # 首次使用
+                c.execute("INSERT INTO api_usage VALUES (?, 4)", (today,))
+            record = c.fetchone()
+            sent_notice("您正在使用免费次数", f"今日剩余次数：{record}次\n（共享API每日免费次数5次，你可前往【设置】配置私有API）")
+            conn.commit()
+
         question = input_text.get("1.0", "end").strip()
         global users_question
 
@@ -2114,16 +2177,13 @@ def open_ai_assistant(parent):
             for name, content in attachments.items():
                 attachments_content += f"\n\n【文件名：{name}】\n{content}"
         users_question = question
-
-        c.execute("SELECT provider, api_key FROM ai_settings")
-        provider, api_key = c.fetchone()
         
         if not question and not attachments:
             messagebox.showwarning("提示", "问题和附件不能同时为空", parent=ai_window)
             return
             
         # 显示提示
-        html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;"><p>思考中，请稍后（未响应属正常现象）</p></div>'
+        html_text = f'<div style="background-color: {judge_theme(1)}; color: {judge_theme(2)}; font-family: Microsoft YaHei;"><p>思考中，请稍后（因需等待AI回答，所以程序未响应属正常现象）</p></div>'
         html_label.set_html(html_text)
         ai_window.update()
         
@@ -2168,9 +2228,11 @@ def open_ai_assistant(parent):
                     <head>
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/copy-tex.min.js"></script>
                         <script>
                             document.addEventListener("DOMContentLoaded", function() {{
                                 renderMathInElement(document.querySelector('.markdown-body'), {{
@@ -2178,9 +2240,19 @@ def open_ai_assistant(parent):
                                         {{left: '$$', right: '$$', display: true}},
                                         {{left: '$', right: '$', display: false}},
                                         {{left: '\\(', right: '\\)', display: false}},
-                                        {{left: '\\[', right: '\\]', display: true}}
+                                        {{left: '\\[', right: '\\]', display: true}},
+                                        {{left: '\\begin{{equation}}', right: '\\end{{equation}}', display: true}}, // 新增方程环境
+                                        {{left: '\\begin{{align}}', right: '\\end{{align}}', display: true}} // 新增对齐环境
                                     ],
-                                    throwOnError: false
+                                    ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+                                    macros: {{
+                                        "\\RR": "\\mathbb{{R}}",
+                                        "\\abs": ["\\left|#1\\right|", 1]
+                                    }},
+                                    throwOnError: false,
+                                    strict: 'ignore', // 忽略无法解析的内容
+                                    trust: true, // 启用信任模式
+                                    fleqn: true // 左对齐公式
                                 }});
                             }});
                         </script>
@@ -2206,6 +2278,9 @@ def open_ai_assistant(parent):
                 input_text.delete("1.0", "end")
                 attachments.clear()
                 attachments_label.config(text="")
+                c.execute("UPDATE api_usage SET count=count+1")
+                sent_notice("遇到错误", "已返还1次免费次数")
+                conn.commit()
         elif provider == "硅基流动":
             api_key=api_key if api_key else "sk-dgxkvpdrkaxvnzhflxeiagetenlhvxsydybqncqwqurejvvf"  # 替换为默认API
             url = "https://api.siliconflow.cn/v1/chat/completions"
@@ -2248,9 +2323,11 @@ def open_ai_assistant(parent):
                     <head>
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js"></script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/copy-tex.min.js"></script>
                         <script>
                             document.addEventListener("DOMContentLoaded", function() {{
                                 renderMathInElement(document.querySelector('.markdown-body'), {{
@@ -2258,9 +2335,19 @@ def open_ai_assistant(parent):
                                         {{left: '$$', right: '$$', display: true}},
                                         {{left: '$', right: '$', display: false}},
                                         {{left: '\\(', right: '\\)', display: false}},
-                                        {{left: '\\[', right: '\\]', display: true}}
+                                        {{left: '\\[', right: '\\]', display: true}},
+                                        {{left: '\\begin{{equation}}', right: '\\end{{equation}}', display: true}}, // 新增方程环境
+                                        {{left: '\\begin{{align}}', right: '\\end{{align}}', display: true}} // 新增对齐环境
                                     ],
-                                    throwOnError: false
+                                    ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+                                    macros: {{
+                                        "\\RR": "\\mathbb{{R}}",
+                                        "\\abs": ["\\left|#1\\right|", 1]
+                                    }},
+                                    throwOnError: false,
+                                    strict: 'ignore', // 忽略无法解析的内容
+                                    trust: true, // 启用信任模式
+                                    fleqn: true // 左对齐公式
                                 }});
                             }});
                         </script>
@@ -2287,6 +2374,9 @@ def open_ai_assistant(parent):
                 input_text.delete("1.0", "end")
                 attachments.clear()
                 attachments_label.config(text="")
+                c.execute("UPDATE api_usage SET count=count+1")
+                sent_notice("遇到错误", "已返还1次免费次数")
+                conn.commit()
 
     ttk.Button(
         control_frame,
@@ -2303,6 +2393,7 @@ def open_ai_assistant(parent):
         style="Model.TButton",
         width=8
     ).pack(side="right", padx=2)
+    Tooltip(control_frame.winfo_children()[4], "清除已添加的所有附件")
 
     # 附件标签和按钮（新增）
     attachments_label = ttk.Label(main_frame, text="", foreground="#666")
@@ -2314,6 +2405,7 @@ def open_ai_assistant(parent):
         style="Model.TButton",
         width=10
     ).pack(side="right", padx=5)
+    Tooltip(control_frame.winfo_children()[5], "支持文件格式：.docx、.doc、.txt、.md、.py、.js、.html、.css")
 
     
     ai_window.transient(parent)
@@ -2535,6 +2627,8 @@ def set_add_date():
     top = tk.Toplevel(root)
     top.title("选择日期")
     top.resizable(False, False)
+    top.transient(root)
+    top.grab_set()
     cal = Calendar(top, 
                  selectmode='day',
                  year=datetime.now().year,
@@ -2545,6 +2639,7 @@ def set_add_date():
     ttk.Button(top, text="确定", command=on_date_select).pack(pady=5)
 
 ttk.Button(date_frame, text="📅 选择", command=set_add_date).grid(row=0, column=2, padx=5)
+Tooltip(date_frame.winfo_children()[2], "在日历中选择日期")
 ttk.Button(date_frame, text="➕ 确认添加", command=add_task, width=12).grid(row=0, column=3, padx=5)
 
 # 右侧功能按钮
@@ -2552,13 +2647,13 @@ func_btn_frame = ttk.Frame(bottom_frame)
 func_btn_frame.pack(side="right", padx=10)
 
 ttk.Button(func_btn_frame, text="🤖 AI智答", command=lambda:open_ai_assistant(root), width=12).grid(row=0, column=0, pady=2)
-Tooltip(func_btn_frame.winfo_children()[0], "使用AI智能回答问题")
+Tooltip(func_btn_frame.winfo_children()[0], "使用AI解答疑惑")
 ttk.Button(func_btn_frame, text="📈 统计报告", command=show_progress_report, width=12).grid(row=1, column=0, pady=2)
 Tooltip(func_btn_frame.winfo_children()[1], "查看学习数据可视化报告")
 ttk.Button(func_btn_frame, text="⚙️ 设置", command=open_settings, width=12).grid(row=2, column=0, pady=2)
 Tooltip(func_btn_frame.winfo_children()[2], "修改应用设置")
 ttk.Button(func_btn_frame, text="ℹ️ 关于应用", command=open_about, width=12).grid(row=3, column=0, pady=2)
-Tooltip(func_btn_frame.winfo_children()[3], "查看应用信息")
+Tooltip(func_btn_frame.winfo_children()[3], "查看应用信息和检查更新")
 
 # 创建托盘
 def on_closing(icon, item):
