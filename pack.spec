@@ -15,8 +15,7 @@ a = Analysis(
         ('theme/dark.tcl', 'theme'), 
         ('theme/light/*', 'theme/light'), 
         ('theme/dark/*', 'theme/dark'), 
-        ('templates/ai_response.html', 'templates'), 
-        ('templates/tutorial.html', 'templates'), 
+        ('templates/*', 'templates'), 
         ('sound/*', 'sound'), 
     ],
     hiddenimports=[], 
@@ -57,5 +56,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='学翼V1.1.2' 
+    name='学翼V1.1.3' 
 )

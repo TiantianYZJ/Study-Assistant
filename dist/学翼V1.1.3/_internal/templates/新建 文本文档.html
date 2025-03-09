@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>学翼 - 交互式统计报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-color: {{ bg_color }};
+            --text-color: {{ text_color }};
+            --chart-color: {{ chart_color }};
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Microsoft YaHei';
+            padding: 20px;
+        }
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .chart-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .stat-box:hover {
+            transform: translateY(-5px);
+        }
+        .export-btn {
+            background: var(--chart-color);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>📊 学翼任务统计报告</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <h3>总任务数</h3>
+                <div style="font-size: 2em; color: var(--chart-color);">{{ total }}</div>
+            </div>
+            <div class="stat-box">
+                <h3>已完成</h3>
+                <div style="font-size: 2em; color: #28B463;">{{ completed }}</div>
+            </div>
+            <div class="stat-box">
+                <h3>待完成</h3>
+                <div style="font-size: 2em; color: #E74C3C;">{{ pending }}</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div id="task-distribution" style="height: 400px;"></div>
+        </div>
+
+        <button class="export-btn" onclick="exportReport()">📥 导出为图片</button>
+    </div>
+
+    <script>
+        // 初始化ECharts
+        var chart = echarts.init(document.getElementById('task-distribution'), null, {
+            renderer: 'canvas'
+        });
+
+        var option = {
+            title: {
+                text: '任务分布分析',
+                left: 'center',
+                textStyle: {
+                    color: 'var(--text-color)'
+                }
+            },
+            tooltip: {
+                trigger: 'item'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 'left',
+                textStyle: {
+                    color: 'var(--text-color)'
+                }
+            },
+            series: [{
+                type: 'pie',
+                radius: '50%',
+                data: [
+                    {value: {{ completed }}, name: '已完成'},
+                    {value: {{ pending }}, name: '待完成'},
+                    {value: {{ upcoming }}, name: '即将到期'},
+                    {value: {{ expired }}, name: '已过期'}
+                ],
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                },
+                label: {
+                    color: 'var(--text-color)'
+                }
+            }]
+        };
+
+        chart.setOption(option);
+
+        // 窗口大小自适应
+        window.onresize = function() {
+            chart.resize();
+        };
+
+        // 导出功能
+        function exportReport() {
+            html2canvas(document.querySelector('.dashboard')).then(canvas => {
+                const link = document.createElement('a');
+                link.download = '学翼统计报告.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

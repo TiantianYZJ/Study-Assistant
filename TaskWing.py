@@ -6,7 +6,7 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.1.2"
+Version = "V1.1.3"
 CHANGELOG = [
     "V0.0.1-2025.01.19 1、“学翼”正式诞生，具备代办管理功能",
     "V0.0.2-2025.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
@@ -42,6 +42,7 @@ CHANGELOG = [
     "V1.1.0-2025.03.02 1、恢复默认API；2、任务列表支持双击和右键操作；3、优化【AI智答】、【关于】；4、添加【通知管理】；5、支持显示AI思考内容；6、【AI智答】支持添加附件",
     "V1.1.1-2025.03.08 1、修复【AI智答】附件解析bug；2、检测更新时显示更新时间；3、浏览器端AI回答适配更多数学公式",
     "V1.1.2-2025.03.09 1、“学翼”LOGO形象升级；2、【关于】添加【支持一下】",
+    "V1.1.3-2025.03.09 1、任务栏托盘支持单机快速启动；2、修复了在线更新bug",
 ]
 
 import random
@@ -511,21 +512,21 @@ def update_time():
 
 # 版本检测
 def version_judge(parent):
-    c.execute("SELECT check_updates FROM notice_settings")
-    if not c.fetchone()[0]:
+    github_api = 'https://api.github.com/repos/tiantianyzj/taskwing/releases/latest'
+    try:
+        res = requests.get(github_api).json()
+    except Exception as e:
+        if parent != root:
+            messagebox.showerror("网络错误", f"无法连接到GitHub，请检查网络连接。有可能是访问过于频繁，请稍后再试。\n错误信息：{e}", parent=parent)
         return
     
-    github_api = 'https://api.github.com/repos/tiantianyzj/taskwing/releases/latest'
-
-    res = requests.get(github_api).json()
     get_version = res['name']# 最新版本
     get_log = res['body']# 更新日志
-    get_time = f"{res['created_at'][0:10]} {res['created_at'][12:19]}"# 发布时间
+    get_time = f"{res['created_at'][0:10]} {res['created_at'][11:19]}"# 发布时间
     if(Version != get_version):
         if parent == root:
             sent_notice("发现新版本", f"{Version} → {get_version}")
         if messagebox.askokcancel("发现新版本", f"学翼 有新版本可用：{Version} → {get_version}\n发布时间：{get_time}\n\n更新内容：\n{get_log}\n\n单击【确定】立即下载", parent=parent):
-            sent_notice("下载已开始", "您可以继续正常使用学翼")
             get_down_url = res['assets'][0]['browser_download_url']# 下载链接
             # 创建进度窗口
             progress_window = tk.Toplevel(parent)
@@ -535,6 +536,8 @@ def version_judge(parent):
             progress_bar.pack(padx=20, pady=20)
             progress_label = ttk.Label(progress_window, text="0%")
             progress_label.pack()
+            progress_window.transient(root)
+            progress_window.grab_set()
 
             def download_with_progress():
                 try:
@@ -578,7 +581,6 @@ def version_judge(parent):
 
                                 # 更新进度条
                                 progress_bar['value'] = progress
-                                # progress_label.config(text=f"{progress:.1f}%")
                                 root.update_idletasks()
                                 print(f"\r下载进度: {progress:.1f}%", end='')
                     progress_window.destroy()
@@ -593,20 +595,24 @@ def version_judge(parent):
                         messagebox.showerror("下载错误", f"下载失败，可能是服务器繁忙\n错误信息： {str(e)}", parent=parent)
                     progress_window.destroy()
                 
-            threading.Thread(target=download_with_progress, daemon=True).start()
+            # threading.Thread(target=download_with_progress, daemon=True).start
+            download_with_progress()
     elif(Version == get_version and parent != root):      
         messagebox.showinfo("检查完成", f"当前已是最新版本\n当前版本：{Version}\n发布时间{get_time}\n\n此版本更新内容：\n{get_log}", parent=parent)
-
+    
 # 显示托盘图标
 def create_tray_icon():
-    image = Image.open(resource_path('LOGO.ico'))
+    image = Image.open(os.path.abspath(resource_path("LOGO.ico")))
 
     menu = (
-        pystray.MenuItem('主页', on_showing),
+        pystray.MenuItem('主页', on_showing, default=True),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem('AI智答', open_ai_assistant_window),
         pystray.MenuItem('统计报告', open_progress_window),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem('设置', open_settings_window),
         pystray.MenuItem('关于应用', open_about_window),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem('退出', on_closing)
     )
 
@@ -2703,7 +2709,7 @@ def on_closing(icon, item):
 def on_show():
     root.withdraw()
     icon = create_tray_icon()
-    sent_notice("已最小化到任务栏托盘", "右键托盘图标并选择【显示】可恢复")
+    sent_notice("已最小化到任务栏托盘", "左键单击托盘图标可恢复")
     icon.run()
     return 0
 
@@ -2751,7 +2757,10 @@ update_time()
 # 更新剩余天数
 update_rest_days()
 
-version_judge(root)
+c.execute("SELECT check_updates FROM notice_settings")
+if c.fetchone()[0]:
+    version_judge(root)
+conn.commit()
 
 # 运行主循环
 root.mainloop()
