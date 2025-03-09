@@ -6,41 +6,42 @@
 # 完整授权条款请参见项目根目录下的LICENSE文件。
 
 # 更新日志
-Version = "V1.1.1"
+Version = "V1.1.2"
 CHANGELOG = [
-    "V0.0.1-2024.01.19 1、“学翼”正式诞生，具备代办管理功能",
-    "V0.0.2-2024.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
-    "V0.0.3-2024.01.19 1、用户群体细分，包装为任务管理软件；2、建立数据库，实现重进数据不受影响；3、完成情况使用文字（已完成、未完成）",
-    "V0.1.0-2024.01.19 1、UI界面焕新，更加现代化；2、主窗口顶部增加时间显示；3、添加深色模式，自动根据时间切换",
-    "V0.1.1-2024.01.19 1、接入WindowsMessage API，实现消息系统层级推送",
-    "V0.1.2-2024.01.20 1、增加系统托盘图标，实现后台驻留；2、完成情况改用图标",
-    "V0.1.4-2024.01.20 1、增加窗口置顶选项；2、新增【设置】，可手动选择主题、配置开机自启动",
-    "V0.2.0-2024.01.21 1、页面布局重新排版，各功能区块界线更明显；2、为所有按钮添加图标；3、丰富系统托盘右键菜单",
-    "V0.2.1-2024.01.21 1、适配开发环境与封装环境，解决打包.exe后无法调用外部资源的问题",
-    "V0.2.2-2024.01.22 1、优化【统计报告】，数据更丰富、更直观；2、添加【关于程序】页面；3、开机自启动支持一键配置",
-    "V0.2.3-2024.01.23 1、更换WindowsMessage API库，解决兼容性问题",
-    "V0.2.4-2024.02.11 1、增加【AI智答】功能，接入DeepseekAPI，支持单次询问、自定义API Key等功能",
-    "V0.2.5-2024.02.12 1、实现对AImarkdown格式回答的渲染",
-    "V0.2.6-2024.02.14 1、新增【更新日志】；2、优化API设置界面布局",
-    "V0.2.7-2024.02.14 1、增加启动欢迎提示，同时提醒待完成任务项",
-    "V0.2.8-2024.02.15 1、【AI设置】添加【私有API配置教程】；2、【AI智答】支持选择服务提供商",
-    "V0.2.9-2024.02.15 1、【学习数据统计】任务状态分布情况细分，更加丰富直观；2、启动欢迎提示增加即将截止、已截止任务提醒",
-    "V0.3.0-2024.02.15 1、HTML渲染页面全面适配深色模式",
-    "V0.3.1-2024.02.15 1、【AI智答】支持设置回答显示方式；2、【API配置教程】改为用浏览器打开，更美观",
-    "V0.3.2-2024.02.15 1、【API配置教程】更换渲染风格，响应式布局",
-    "V0.3.3-2024.02.16 1、托盘右键菜单优化，新增【统计报告】选项",
-    "V1.0.0-2024.02.16 1、“学翼”1.0.0正式版发布！欢迎体验交流",
-    "V1.0.1-2024.02.16 1、优化部分窗口尺寸；2、优化通知提示；3、修复了一些已知BUG",
-    "V1.0.2-2024.02.16 1、修复了一些已知BUG",
-    "V1.0.3-2024.02.16 1、更换高清图标",
-    "V1.0.4-2024.02.20 1、优化【清空】代码逻辑；2、正式确定应用名：中文“学翼”，英文“TaskWing”",
-    "V1.0.5-2024.02.22 1、新增【专注】，计入统计报告，助力高效学习；2、重要按钮增加悬停提示；3、【设置】新增【删除所有数据】，并优化操作逻辑",
-    "V1.0.6-2024.02.22 1、因Deepseek关闭充值入口，【AI智答】暂停提供该渠道共享API，该渠道私有API不受影响；2、优化【专注】；3、优化【设置】",
-    "V1.0.7-2024.02.22 1、优化按钮名称；2、主页面字体调整，更显眼；3、【统计报告】优化数据统计逻辑；4、接入日期选择器控件，选择日期更直观",
-    "V1.0.8-2024.02.23 1、主题模式新增【跟随系统】；2、浏览器显示回答支持复杂数学公式；3、【专注】新增音量调节；4、【统计报告】优化防溢出",
-    "V1.0.9-2024.02.28 1、新增更新检测，从此更新更方便；2、重新设计关于页面；3、取消悬浮提示框的渐显渐隐效果，杜绝了闪烁BUG",
-    "V1.1.0-2024.03.02 1、恢复默认API；2、任务列表支持双击和右键操作；3、优化【AI智答】、【关于】；4、添加【通知管理】；5、支持显示AI思考内容；6、【AI智答】支持添加附件",
-    "V1.1.1-2024.03.08 1、修复【AI智答】附件解析bug；2、检测更新时显示更新时间；3、浏览器端AI回答适配更多数学公式",
+    "V0.0.1-2025.01.19 1、“学翼”正式诞生，具备代办管理功能",
+    "V0.0.2-2025.01.19 1、添加【任务进度报告】，生成饼图显示任务完成情况",
+    "V0.0.3-2025.01.19 1、用户群体细分，包装为任务管理软件；2、建立数据库，实现重进数据不受影响；3、完成情况使用文字（已完成、未完成）",
+    "V0.1.0-2025.01.19 1、UI界面焕新，更加现代化；2、主窗口顶部增加时间显示；3、添加深色模式，自动根据时间切换",
+    "V0.1.1-2025.01.19 1、接入WindowsMessage API，实现消息系统层级推送",
+    "V0.1.2-2025.01.20 1、增加系统托盘图标，实现后台驻留；2、完成情况改用图标",
+    "V0.1.4-2025.01.20 1、增加窗口置顶选项；2、新增【设置】，可手动选择主题、配置开机自启动",
+    "V0.2.0-2025.01.21 1、页面布局重新排版，各功能区块界线更明显；2、为所有按钮添加图标；3、丰富系统托盘右键菜单",
+    "V0.2.1-2025.01.21 1、适配开发环境与封装环境，解决打包.exe后无法调用外部资源的问题",
+    "V0.2.2-2025.01.22 1、优化【统计报告】，数据更丰富、更直观；2、添加【关于程序】页面；3、开机自启动支持一键配置",
+    "V0.2.3-2025.01.23 1、更换WindowsMessage API库，解决兼容性问题",
+    "V0.2.4-2025.02.11 1、增加【AI智答】功能，接入DeepseekAPI，支持单次询问、自定义API Key等功能",
+    "V0.2.5-2025.02.12 1、实现对AImarkdown格式回答的渲染",
+    "V0.2.6-2025.02.14 1、新增【更新日志】；2、优化API设置界面布局",
+    "V0.2.7-2025.02.14 1、增加启动欢迎提示，同时提醒待完成任务项",
+    "V0.2.8-2025.02.15 1、【AI设置】添加【私有API配置教程】；2、【AI智答】支持选择服务提供商",
+    "V0.2.9-2025.02.15 1、【学习数据统计】任务状态分布情况细分，更加丰富直观；2、启动欢迎提示增加即将截止、已截止任务提醒",
+    "V0.3.0-2025.02.15 1、HTML渲染页面全面适配深色模式",
+    "V0.3.1-2025.02.15 1、【AI智答】支持设置回答显示方式；2、【API配置教程】改为用浏览器打开，更美观",
+    "V0.3.2-2025.02.15 1、【API配置教程】更换渲染风格，响应式布局",
+    "V0.3.3-2025.02.16 1、托盘右键菜单优化，新增【统计报告】选项",
+    "V1.0.0-2025.02.16 1、“学翼”1.0.0正式版发布！欢迎体验交流",
+    "V1.0.1-2025.02.16 1、优化部分窗口尺寸；2、优化通知提示；3、修复了一些已知BUG",
+    "V1.0.2-2025.02.16 1、修复了一些已知BUG",
+    "V1.0.3-2025.02.16 1、更换高清图标",
+    "V1.0.4-2025.02.20 1、优化【清空】代码逻辑；2、正式确定应用名：中文“学翼”，英文“TaskWing”",
+    "V1.0.5-2025.02.22 1、新增【专注】，计入统计报告，助力高效学习；2、重要按钮增加悬停提示；3、【设置】新增【删除所有数据】，并优化操作逻辑",
+    "V1.0.6-2025.02.22 1、因Deepseek关闭充值入口，【AI智答】暂停提供该渠道共享API，该渠道私有API不受影响；2、优化【专注】；3、优化【设置】",
+    "V1.0.7-2025.02.22 1、优化按钮名称；2、主页面字体调整，更显眼；3、【统计报告】优化数据统计逻辑；4、接入日期选择器控件，选择日期更直观",
+    "V1.0.8-2025.02.23 1、主题模式新增【跟随系统】；2、浏览器显示回答支持复杂数学公式；3、【专注】新增音量调节；4、【统计报告】优化防溢出",
+    "V1.0.9-2025.02.28 1、新增更新检测，从此更新更方便；2、重新设计关于页面；3、取消悬浮提示框的渐显渐隐效果，杜绝了闪烁BUG",
+    "V1.1.0-2025.03.02 1、恢复默认API；2、任务列表支持双击和右键操作；3、优化【AI智答】、【关于】；4、添加【通知管理】；5、支持显示AI思考内容；6、【AI智答】支持添加附件",
+    "V1.1.1-2025.03.08 1、修复【AI智答】附件解析bug；2、检测更新时显示更新时间；3、浏览器端AI回答适配更多数学公式",
+    "V1.1.2-2025.03.09 1、“学翼”LOGO形象升级；2、【关于】添加【支持一下】",
 ]
 
 import random
@@ -388,6 +389,8 @@ def set_theme(theme_choice):
     style.configure("Treeview.Heading", font=('Microsoft YaHei', 14))
     style.configure("Treeview",font=('Microsoft YaHei', 12))
 
+    style.configure('Hyperlink.TLabel', foreground='blue', font=('Microsoft YaHei', 10, 'underline'), cursor='hand2')
+
     style.configure("Large.TLabelframe.Label", font=('Microsoft YaHei', 12, 'bold'),background=judge_theme(1), foreground=judge_theme(2))
 
     # 更新数据库中的主题设置
@@ -517,11 +520,11 @@ def version_judge(parent):
     res = requests.get(github_api).json()
     get_version = res['name']# 最新版本
     get_log = res['body']# 更新日志
-    get_time = res['created_at'][0:10]# 发布时间
+    get_time = f"{res['created_at'][0:10]} {res['created_at'][12:19]}"# 发布时间
     if(Version != get_version):
         if parent == root:
             sent_notice("发现新版本", f"{Version} → {get_version}")
-        if messagebox.askokcancel("发现新版本", f"有新版本可用：{Version} → {get_version}\n发布时间：{get_time}\n\n更新内容：\n{get_log}\n\n单击【确定】立即下载", parent=parent):
+        if messagebox.askokcancel("发现新版本", f"学翼 有新版本可用：{Version} → {get_version}\n发布时间：{get_time}\n\n更新内容：\n{get_log}\n\n单击【确定】立即下载", parent=parent):
             sent_notice("下载已开始", "您可以继续正常使用学翼")
             get_down_url = res['assets'][0]['browser_download_url']# 下载链接
             # 创建进度窗口
@@ -1660,10 +1663,15 @@ A：因为您选择的任务已经完成了。"""
              justify="left").pack(anchor='w')
     
     # 图标版权
-    ttk.Label(statement_frame,
-             text="部分图标来源于阿里巴巴矢量图标库，如有侵权请联系删除",
-             font=("Microsoft YaHei", 10),
-             justify="left").pack(anchor='w')
+    copyright_label = ttk.Label(
+        statement_frame,
+        text="LOGO 来源于 Flaticon（由 Ilham Fitrotul Hayat 创建）",
+        style='Hyperlink.TLabel',  # 应用超链接样式
+        justify='left'
+    )
+    copyright_label.pack(anchor='w')
+    copyright_label.bind('<Button-1>', lambda e: webbrowser.open("https://www.flaticon.com/free-icons/calendar"))
+    Tooltip(statement_frame.winfo_children()[1], "点击前往 Flaticon 网（https://www.flaticon.com/free-icons/calendar）")
 
     # ========== 更新日志区 ==========
     changelog_frame = ttk.LabelFrame(main_frame, 
@@ -1695,6 +1703,24 @@ A：因为您选择的任务已经完成了。"""
         changelog_text.insert("end", f"• {entry}\n")
     changelog_text.configure(state="disabled")
 
+    def tipping_window():
+        tip_window = tk.Toplevel(about_window)
+        tip_window.title("微信赞赏码")
+        tip_window.geometry("300x300")
+        tip_window.resizable(False, False)
+        tip_window.transient(about_window)
+        tip_window.grab_set()
+        #插入图片并填充页面
+        img_path = os.path.abspath(resource_path("tipping.png"))
+        # 加载并缩放图片到窗口尺寸
+        original_img = Image.open(img_path)
+        resized_img = original_img.resize((300, 300), Image.LANCZOS)
+        tip_img = ImageTk.PhotoImage(resized_img)
+        
+        img_label = ttk.Label(tip_window, image=tip_img)
+        img_label.image = tip_img  # 保持图片引用
+        img_label.pack(expand=True, fill='both')
+
     # ========== 操作按钮区 ==========
     btn_frame = ttk.Frame(main_frame)
     btn_frame.pack(pady=10)
@@ -1704,6 +1730,12 @@ A：因为您选择的任务已经完成了。"""
               command=lambda: webbrowser.open_new("https://github.com/TiantianYZJ/TaskWing")
               ).pack(side='left', padx=10)
     Tooltip(btn_frame.winfo_children()[0], "点击前往 GitHub 项目页（https://github.com/TiantianYZJ/TaskWing）")
+
+    ttk.Button(btn_frame, 
+              text="❤️ 支持一下",
+              command=lambda: tipping_window(),
+              ).pack(side='left', padx=10)
+    Tooltip(btn_frame.winfo_children()[1], "请作者喝杯咖啡吧~")
     
     ttk.Button(btn_frame,
               text="关闭",

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智答 - 学翼</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/copy-tex.min.js"></script>
+    <style>
+        :root {
+            --bg-color: {{ bg_color }};
+            --text-color: {{ text_color }};
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --code-bg: rgba(118, 75, 162, 0.15);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --glass-bg: rgba(0, 0, 0, 0.2);
+                --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+                --code-bg: rgba(102, 126, 234, 0.15);
+            }
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter var', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            min-height: 100vh;
+        }
+        
+        /* 新增底部声明样式 */
+        .footer-notice {
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+            color: rgba(var(--text-color-rgb), 0.8);
+            font-size: 0.8rem;
+            line-height: 1.5;
+            width: 100%;
+            margin-top: auto;
+        }
+
+        .footer-notice br {
+            display: inline;
+            content: "";
+            margin: 0 0.3em;
+        }
+
+        /* 代码字体设置 */
+        .markdown-body pre code {
+            font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
+            font-size: 0.9em;
+            background: none !important;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* 提问卡片 - 玻璃拟态效果 */
+        .question-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: var(--transition-fast);
+        }
+
+        .question-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .question-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .question-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .question-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 回答内容区域 */
+        .answer-content {
+            background: var(--bg-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .answer-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary-gradient);
+        }
+
+        /* 动态复制按钮 */
+        .copy-tooltip {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .copy-button {
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-color);
+            transition: var(--transition-fast);
+            box-shadow: var(--shadow-md);
+            position: relative;
+        }
+
+        .copy-button:hover {
+            transform: scale(1.1) rotate(10deg);
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .tooltip {
+            position: absolute;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .copy-button:hover .tooltip {
+            opacity: 1;
+        }
+
+        /* 深色模式适配 */
+        @media (prefers-color-scheme: dark) {
+            .question-card {
+                border-color: rgba(255, 255, 255, 0.05);
+            }
+
+            .markdown-body {
+                color: #e5e7eb;
+            }
+
+            .markdown-body pre {
+                background: rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .question-card {
+                padding: 1.5rem;
+            }
+
+            .answer-content {
+                padding: 1.5rem;
+                border-radius: 12px;
+            }
+
+            .copy-button {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+
+        /* Markdown 内容增强 */
+        .markdown-body h2 {
+            position: relative;
+            padding-left: 1.5rem;
+            margin: 2rem 0 1.5rem;
+        }
+
+        .markdown-body h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.4em;
+            height: 1em;
+            width: 6px;
+            background: var(--primary-gradient);
+            border-radius: 3px;
+        }
+
+        .markdown-body ul {
+            list-style: none;
+            padding-left: 1.5rem;
+        }
+
+        .markdown-body ul li::before {
+            content: '•';
+            color: #667eea;
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+        .markdown-body pre {
+            background: var(--code-bg) !important;
+            border-radius: 12px !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 1.25rem 1.5rem !important;
+            overflow-x: auto;
+            transition: var(--transition-fast);
+            position: relative;
+            margin: 0 !important;
+            border-radius: 0 0 12px 12px !important;
+        }
+
+
+        /* 表格增强 */
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .markdown-body th {
+            background: rgba(118, 75, 162, 0.3);
+            font-weight: 600;
+        }
+
+        /* 引用块特效 */
+        .markdown-body blockquote {
+            border-left: 4px solid #667eea;
+            margin: 1.5rem 0;
+            padding: 1rem 1.5rem;
+            background: var(--glass-bg);
+            border-radius: 8px;
+            position: relative;
+            font-style: italic;
+        }
+
+        .markdown-body blockquote::before {
+            content: '"';
+            position: absolute;
+            left: 0.5rem;
+            top: -0.5rem;
+            font-size: 2.5em;
+            color: rgba(118, 75, 162, 0.3);
+        }
+
+        /* 图片增强 */
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: 16px;
+            margin: 1.5rem 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        /* 交互效果增强 */
+        .markdown-body pre:hover {
+            transform: translateX(4px);
+        }
+
+        .markdown-body img:hover {
+            transform: scale(1.02);
+        }
+
+        /* 高亮文字 */
+        .markdown-body strong {
+            background: linear-gradient(120deg, #667eea30 0%, #764ba230 100%);
+            padding: 0.1em 0.3em;
+            border-radius: 4px;
+        }
+
+        /* 在现有样式中添加公式渲染样式 */
+        .katex {
+            font-size: 1.1em;
+            color: var(--text-color);
+        }
+
+        .katex-display {
+            margin: 1.2em 0;
+            padding: 1em;
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+    </style>
+    <style>
+        /* 新增代码块样式 */
+        .code-block-wrapper {
+            position: relative;
+            margin: 1.5rem 0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(90deg, rgba(118, 75, 162, 0.3), rgba(102, 126, 234, 0.3));
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .code-language {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .code-copy {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            padding: 0.25rem 0.75rem;
+            border-radius: 8px;
+            transition: var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .code-copy:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+    </style>
+
+    <script>
+        // 添加代码块处理逻辑
+        document.addEventListener('DOMContentLoaded', () => {
+            // 在现有DOM加载后添加公式渲染
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true},
+                    {left: '\\begin{equation}', right: '\\end{equation}', display: true}, // 新增方程环境
+                    {left: '\\begin{align}', right: '\\end{align}', display: true} // 新增对齐环境
+                ],
+                ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+                macros: {
+                    "\\RR": "\\mathbb{R}",
+                    "\\abs": ["\\left|#1\\right|", 1]
+                },
+                throwOnError: false,
+                strict: 'ignore', // 忽略无法解析的内容
+                trust: true, // 启用信任模式
+                fleqn: true // 左对齐公式
+            });
+            document.querySelectorAll('pre').forEach(pre => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-block-wrapper';
+                
+                const header = document.createElement('div');
+                header.className = 'code-header';
+                
+                // 获取代码语言
+                const code = pre.querySelector('code');
+                const lang = code.className.replace('language-', '') || 'code';
+                
+                // 创建语言标签
+                const langSpan = document.createElement('span');
+                langSpan.className = 'code-language';
+                langSpan.textContent = lang;
+                
+                // 创建复制按钮
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'code-copy';
+                copyBtn.innerHTML = '<i class="far fa-copy"></i>';
+                
+                // 复制功能
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(code.innerText).then(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="far fa-copy"></i>';
+                        }, 2000);
+                    });
+                });
+                
+                // 组装结构
+                header.appendChild(langSpan);
+                header.appendChild(copyBtn);
+                pre.parentNode.insertBefore(wrapper, pre);
+                wrapper.appendChild(header);
+                wrapper.appendChild(pre);
+            });
+        });
+    </script>
+
+</head>
+<body>
+    <div class="container">
+        <!-- 提问卡片 -->
+        <div class="question-card">
+            <div class="question-header">
+                <div class="question-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div>
+                    <h3 class="question-title">我的问题</h3>
+                    <p class="question-text">{{ user_question }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 回答内容 -->
+        <article class="answer-content markdown-body">
+            {{ ai_response|safe }}
+        </article>
+
+        <!-- 悬浮工具按钮 -->
+        <div class="copy-tooltip">
+            <button class="copy-button" onclick="copyResponse()">
+                <i class="fas fa-copy"></i>
+                <span class="tooltip">复制回答</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 新增底部声明 -->
+    <footer class="footer-notice">
+        <br>本服务由Deepseek提供支持 · 不支持连续对话 | 默认使用共享API · 由作者自费 · 可在【AI智答设置】更改 | 有大量使用需求的用户请配置自己的API，谢谢理解！</br>
+    </footer>
+
+    <script>
+        function copyResponse() {
+            const content = document.querySelector('.markdown-body').innerText;
+            navigator.clipboard.writeText(content).then(() => {
+                const btn = document.querySelector('.copy-button');
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                btn.style.background = '#10b981';
+                
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i>';
+                    btn.style.background = '';
+                }, 2000);
+            });
+        }
+
+        // 添加滚动动画
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = 1;
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+
+            document.querySelectorAll('.question-card, .answer-content').forEach(el => {
+                el.style.opacity = 0;
+                el.style.transform = 'translateY(20px)';
+                el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                observer.observe(el);
+            });
+        });
+    </script>
+</body>
+</html>

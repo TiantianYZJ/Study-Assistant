@@ -1,12 +1,12 @@
-![横幅](https://cdn.luogu.com.cn/upload/image_hosting/cs0gr76j.png)
+![横幅](https://cdn.luogu.com.cn/upload/image_hosting/it3av51p.png)
 
 # 学翼 - 您的一站式智能化学习平台
 
 > 一款专为Windows打造的智能化学习任务管理工具，集成AI问答、进度跟踪、数据可视化等功能
 
-**下载最新版本**：[学翼-V1.1.1 安装包](https://github.com/TiantianYZJ/TaskWing/releases/download/V1.1.1/TaskWing-V1.1.1_Setup.exe)  
+**下载最新版本**：[学翼-V1.1.2 安装包](https://github.com/TiantianYZJ/TaskWing/releases/download/V1.1.2/TaskWing-V1.1.2_Setup.exe)  
 
-*支持 Windows 10/11 系统 | 大小：约162.5MB | 更新时间：2025.03.08*
+*支持 Windows 10/11 系统 | 大小：约162.5MB | 更新时间：2025.03.09*
 
 ---
 
@@ -81,14 +81,15 @@
 
 ## 📌 高级技巧
 
-- **快捷键**：任务名称输入框支持 `Enter` 快速提交  
-- **主题切换**：在设置中选择「自动切换」可让主题随时间变化  
+- **快捷键**：任务添加时选中输入框支持 `Enter` 快速提交  
+- **快捷操作**：任务列表支持双击快速修改、右键调出菜单
+- **主题切换**：在设置中选择「自动切换」或「跟随系统」可让主题自动切换，解放双手  
 - **API 优化**：频繁使用 AI 功能时，建议通过教程配置私有 API 以提升稳定性  
 - **数据安全**：用户数据存储在 `%APPDATA%\Roaming\TaskWing\TaskWing_data.db` ，重装系统前建议备份  
 
 ---
 
 ## 开源协议
-本项目基于 **GPLv3 协议**开源，欢迎贡献代码或提交改进建议。图标资源来自[阿里巴巴矢量图标库](https://www.iconfont.cn/collections/detail?cid=50153)，核心 AI 能力由 [Deepseek](https://www.deepseek.com/) 和 [硅基流动](https://www.siliconflow.com/zh/home) 提供支持。
+本项目基于 **GPLv3 协议**开源，欢迎贡献代码或提交改进建议。图标资源来自[Flaticon](https://www.flaticon.com/free-icons/calendar)，核心 AI 能力由 [Deepseek](https://www.deepseek.com/) 和 [硅基流动](https://www.siliconflow.com/zh/home) 提供支持。
 
 *让 TaskWing 为您的每一次学习注入澎湃动力！* 🚀

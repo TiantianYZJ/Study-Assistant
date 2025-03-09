@@ -10,6 +10,7 @@ a = Analysis(
         ('LOGO.png', '.'), 
         ('LOGO.ico', '.'), 
         ('azure.tcl', '.'), 
+        ('tipping.png', '.'), 
         ('theme/light.tcl', 'theme'), 
         ('theme/dark.tcl', 'theme'), 
         ('theme/light/*', 'theme/light'), 
@@ -56,5 +57,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='学翼V1.1.1' 
+    name='学翼V1.1.2' 
 )
